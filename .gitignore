@@ -1,0 +1,4 @@
+bin/
+obj/
+Storage/videos/
+Storage/metadata.json

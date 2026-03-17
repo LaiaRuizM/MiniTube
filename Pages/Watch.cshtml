@@ -1,0 +1,49 @@
+@page
+@model MiniTube.Pages.WatchModel
+@{
+    ViewData["Title"] = Model.Video?.Title ?? "Watch";
+}
+
+<div class="container mt-4">
+    @if (Model.Video != null)
+    {
+        <div class="row">
+            <div class="col-lg-10">
+                <div class="video-wrapper mb-3">
+                    <video controls autoplay class="w-100 rounded" style="max-height: 70vh; background: #000;">
+                        <source src="@Model.VideoUrl" type="video/mp4" />
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+
+                <h2>@Model.Video.Title</h2>
+                <div class="d-flex gap-3 text-muted mb-3">
+                    <span class="badge bg-secondary">@Model.Video.Category</span>
+                    <small>Uploaded @Model.Video.UploadedAt.ToString("MMMM dd, yyyy")</small>
+                    <small>@FormatFileSize(Model.Video.FileSizeBytes)</small>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(Model.Video.Description))
+                {
+                    <div class="card">
+                        <div class="card-body">
+                            <p class="mb-0">@Model.Video.Description</p>
+                        </div>
+                    </div>
+                }
+
+                <a href="/" class="btn btn-outline-secondary mt-3">Back to videos</a>
+            </div>
+        </div>
+    }
+</div>
+
+@functions {
+    string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        if (bytes < 1024 * 1024 * 1024) return $"{bytes / (1024.0 * 1024):F1} MB";
+        return $"{bytes / (1024.0 * 1024 * 1024):F1} GB";
+    }
+}

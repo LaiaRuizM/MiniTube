@@ -25,6 +25,27 @@
             {
                 <div class="col-md-4 mb-4">
                     <div class="card h-100 video-card">
+                        @{
+                            var thumbSrc = !string.IsNullOrEmpty(video.ThumbnailFileName)
+                                ? $"/videos/thumbnails/{video.ThumbnailFileName}"
+                                : null;
+                        }
+                        @if (thumbSrc != null)
+                        {
+                            <img src="@thumbSrc" class="card-img-top" alt="@video.Title thumbnail"
+                                 style="height: 160px; object-fit: cover;" />
+                        }
+                        else
+                        {
+                            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
+                                 style="height: 160px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="white"
+                                     viewBox="0 0 16 16">
+                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                                    <path d="M6.271 5.055a.5.5 0 0 1 .52.038l3.5 2.5a.5.5 0 0 1 0 .814l-3.5 2.5A.5.5 0 0 1 6 10.5v-5a.5.5 0 0 1 .271-.445z"/>
+                                </svg>
+                            </div>
+                        }
                         <div class="card-body">
                             <h5 class="card-title">@video.Title</h5>
                             <span class="badge bg-secondary mb-2">@video.Category</span>

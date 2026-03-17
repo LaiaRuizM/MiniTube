@@ -7,6 +7,7 @@ public class VideoService
 {
     private readonly string _videoFolder;
     private readonly string _metadataPath;
+    private readonly string _thumbnailFolder;
     private readonly object _lock = new();
 
     private static readonly string[] AllowedExtensions = { ".mp4", ".webm", ".mov" };
@@ -17,8 +18,10 @@ public class VideoService
         var storageRoot = Path.Combine(env.ContentRootPath, "Storage");
         _videoFolder = Path.Combine(storageRoot, "videos");
         _metadataPath = Path.Combine(storageRoot, "metadata.json");
+        _thumbnailFolder = Path.Combine(_videoFolder, "thumbnails");
 
         Directory.CreateDirectory(_videoFolder);
+        Directory.CreateDirectory(_thumbnailFolder);
     }
 
     public List<VideoMetadata> GetAll()
@@ -63,6 +66,9 @@ public class VideoService
             await file.CopyToAsync(stream);
         }
 
+        // Generate thumbnail from video
+        metadata.ThumbnailFileName = await GenerateThumbnailAsync(filePath, metadata.Id);
+
         // Append metadata to JSON
         lock (_lock)
         {
@@ -73,6 +79,34 @@ public class VideoService
         }
 
         return metadata;
+    }
+
+    private async Task<string?> GenerateThumbnailAsync(string videoFilePath, string videoId)
+    {
+        var outputFileName = $"{videoId}.jpg";
+        var outputPath = Path.Combine(_thumbnailFolder, outputFileName);
+
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "ffmpeg",
+            Arguments = $"-y -ss 2 -i \"{videoFilePath}\" -vframes 1 -q:v 2 -update 1 \"{outputPath}\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        try
+        {
+            using var process = System.Diagnostics.Process.Start(psi);
+            if (process == null) return null;
+            await process.WaitForExitAsync();
+            return process.ExitCode == 0 && File.Exists(outputPath) ? outputFileName : null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public string GetVideoFilePath(string fileName)

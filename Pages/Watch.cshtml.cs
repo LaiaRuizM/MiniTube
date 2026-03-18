@@ -30,4 +30,10 @@ public class WatchModel : PageModel
         VideoUrl = $"/videos/{Video.FileName}";
         return Page();
     }
+
+    public async Task<IActionResult> OnPostDeleteAsync(string id)
+    {
+        await _videoService.DeleteVideoAsync(id);
+        return RedirectToPage("/Index");
+    }
 }

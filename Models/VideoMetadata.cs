@@ -9,4 +9,5 @@ public class VideoMetadata
     public string FileName { get; set; } = string.Empty;
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
     public long FileSizeBytes { get; set; }
+    public string? ThumbnailFileName { get; set; }
 }

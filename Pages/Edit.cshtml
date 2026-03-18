@@ -1,0 +1,56 @@
+@page
+@model MiniTube.Pages.EditModel
+@{
+    ViewData["Title"] = "Edit Video";
+}
+
+<div class="container mt-4">
+    <h1>Edit Video</h1>
+    <hr />
+
+    <div class="row">
+        <div class="col-md-8">
+            <form method="post" enctype="multipart/form-data">
+                <input asp-for="Form.Id" type="hidden" />
+
+                <div class="mb-3">
+                    <label asp-for="Form.Title" class="form-label">Title</label>
+                    <input asp-for="Form.Title" class="form-control" placeholder="Enter video title" />
+                    <span asp-validation-for="Form.Title" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Form.Description" class="form-label">Description</label>
+                    <textarea asp-for="Form.Description" class="form-control" rows="3" placeholder="Describe your video (optional)"></textarea>
+                    <span asp-validation-for="Form.Description" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Form.Category" class="form-label">Category</label>
+                    <select asp-for="Form.Category" class="form-select">
+                        <option value="">-- Select a category --</option>
+                        @foreach (var cat in Model.Categories)
+                        {
+                            <option value="@cat">@cat</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Form.Category" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Form.VideoFile" class="form-label">Video File (Optional)</label>
+                    <input asp-for="Form.VideoFile" class="form-control" type="file" accept=".mp4,.webm,.mov" />
+                    <div class="form-text">Leave empty to keep current video. Upload new file to replace (max 500 MB)</div>
+                    <span asp-validation-for="Form.VideoFile" class="text-danger"></span>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <a href="/Watch?id=@Model.Form.Id" class="btn btn-outline-secondary ms-2">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

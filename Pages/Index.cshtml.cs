@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using MiniTube.Models;
 using MiniTube.Services;
@@ -20,5 +21,11 @@ public class IndexModel : PageModel
         Videos = _videoService.GetAll()
             .OrderByDescending(v => v.UploadedAt)
             .ToList();
+    }
+
+    public async Task<IActionResult> OnPostDeleteAsync(string id)
+    {
+        await _videoService.DeleteVideoAsync(id);
+        return RedirectToPage();
     }
 }

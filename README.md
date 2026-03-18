@@ -31,6 +31,46 @@ Open **http://localhost:5000** → Upload a video → Watch it play.
 | **Play** | In-browser `<video>` player with full metadata display |
 | **Validate** | Server-side validation with data annotations — file type, size, required fields |
 | **Persist** | Metadata stored in JSON, video files on local disk — zero database setup needed |
+| **Edit & Delete** | Update video metadata or remove videos entirely |
+| **Thumbnails** | Auto-generated from video frames (2-second mark) for visual browsing |
+
+---
+
+## Features in Action
+
+### Index Page — Video Grid with Thumbnails
+
+![MiniTube Index Page](docs/screenshots/index-page.png)
+
+Browse all uploaded videos in a clean, responsive grid. Each card shows:
+- **Thumbnail preview** — Auto-generated from the video's 2-second frame
+- **Video title** and category badge
+- **Upload date** for sorting context
+- **Action buttons** — Watch, Edit, or Delete
+
+Videos are sorted by newest first, making it easy to find recent uploads.
+
+---
+
+### Watch Page — Player with "Other Videos" Sidebar
+
+![MiniTube Watch Page](docs/screenshots/watch-page.png)
+
+Clean two-column layout optimized for focused viewing:
+
+**Left side (8 columns):**
+- Full-featured HTML5 `<video>` player with controls
+- Video title, category, upload date, and file size
+- Video description in a card
+- Edit and Delete buttons for quick access
+- "Back to videos" link for navigation
+
+**Right sidebar (4 columns):**
+- **"Other Videos"** section showing all other uploaded videos
+- Thumbnail previews for quick visual scanning
+- Video metadata (title, category, date)
+- Click any video to watch — no page reload needed
+- Sticky positioning keeps the sidebar visible while scrolling
 
 ---
 

@@ -183,6 +183,7 @@ public class VideoService
         }
     }
 
+
     private async Task<string?> GenerateThumbnailAsync(string videoFilePath, string videoId)
     {
         var outputFileName = $"{videoId}.jpg";

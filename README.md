@@ -18,7 +18,7 @@ cd MiniTube
 dotnet run
 ```
 
-Open **http://localhost:5000** → Upload a video → Watch it play.
+Open **http://localhost:5028** → Upload a video → Watch it play.
 
 ---
 

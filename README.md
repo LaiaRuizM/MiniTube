@@ -11,10 +11,16 @@ Upload, browse, and play videos from a simple web UI. No cloud dependencies, no 
 ---
 
 ## Quick Start
+Run the project locally in seconds:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/MiniTube.git
+# Clone the repository
+git clone https://github.com/LaiaRuizM/MiniTube.git
+
+# Navigate into the project
 cd MiniTube
+
+# Run the application
 dotnet run
 ```
 
@@ -241,7 +247,7 @@ MiniTube/
 | **Razor Pages over Minimal API** | Need server-rendered UI; Razor Pages map 1:1 to screens, common in enterprise shops |
 | **JSON file over SQLite** | Fastest path to working MVP; swap to EF Core later without changing the service interface |
 | **Singleton VideoService** | Single shared instance is fine for local dev; in production, swap to scoped + database |
-| **`lock` for JSON writes** | Simple thread safety for a singleton writing to a shared file — interview talking point about concurrency |
+| **`lock` for JSON writes** | Simple thread safety for a singleton writing to a shared file |
 | **Static files for video serving** | Kestrel handles range requests and caching out of the box — no custom streaming code needed |
 
 ---

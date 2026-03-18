@@ -2,3 +2,4 @@ bin/
 obj/
 Storage/videos/
 Storage/metadata.json
+docs/*.md

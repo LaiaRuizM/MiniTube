@@ -7,8 +7,9 @@
 <div class="container mt-4">
     @if (Model.Video != null)
     {
-        <div class="row">
-            <div class="col-lg-10">
+        <div class="row g-4">
+            <!-- Main video section -->
+            <div class="col-lg-8">
                 <div class="video-wrapper mb-3">
                     <video controls autoplay class="w-100 rounded" style="max-height: 70vh; background: #000;">
                         <source src="@Model.VideoUrl" type="video/mp4" />
@@ -43,9 +44,60 @@
 
                 <a href="/" class="btn btn-outline-secondary mt-3">Back to videos</a>
             </div>
+
+            <!-- Other Videos Sidebar -->
+            <div class="col-lg-4">
+                <div class="sticky-top" style="top: 1rem;">
+                    <h5 class="mb-3">Other Videos</h5>
+
+                    @if (Model.OtherVideos.Any())
+                    {
+                        <div class="d-flex flex-column gap-3">
+                            @foreach (var video in Model.OtherVideos)
+                            {
+                                <a href="/Watch?id=@video.Id" class="card text-decoration-none text-reset hover-card">
+                                    <div style="position: relative; aspect-ratio: 16/9; background: #f0f0f0; overflow: hidden;">
+                                        @if (!string.IsNullOrEmpty(video.ThumbnailFileName))
+                                        {
+                                            <img src="/videos/thumbnails/@video.ThumbnailFileName"
+                                                 alt="@video.Title"
+                                                 style="width: 100%; height: 100%; object-fit: cover;" />
+                                        }
+                                        else
+                                        {
+                                            <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #999;">
+                                                No Thumbnail
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title mb-1" style="font-size: 0.95rem; line-height: 1.3;">@video.Title</h6>
+                                        <small class="text-muted d-block">@video.Category</small>
+                                        <small class="text-muted">@video.UploadedAt.ToString("MMM dd")</small>
+                                    </div>
+                                </a>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No other videos available</p>
+                    }
+                </div>
+            </div>
         </div>
     }
 </div>
+
+<style>
+    .hover-card {
+        transition: box-shadow 0.2s ease;
+    }
+
+    .hover-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+</style>
 
 @functions {
     string FormatFileSize(long bytes)

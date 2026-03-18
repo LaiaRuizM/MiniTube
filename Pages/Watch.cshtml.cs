@@ -16,6 +16,7 @@ public class WatchModel : PageModel
 
     public VideoMetadata? Video { get; set; }
     public string VideoUrl { get; set; } = string.Empty;
+    public List<VideoMetadata> OtherVideos { get; set; } = new();
 
     public IActionResult OnGet(string id)
     {
@@ -28,6 +29,14 @@ public class WatchModel : PageModel
             return RedirectToPage("/Index");
 
         VideoUrl = $"/videos/{Video.FileName}";
+
+        // Load other videos for sidebar (exclude current video)
+        var allVideos = _videoService.GetAll();
+        OtherVideos = allVideos
+            .Where(v => v.Id != id)
+            .OrderByDescending(v => v.UploadedAt)
+            .ToList();
+
         return Page();
     }
 

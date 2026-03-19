@@ -3,3 +3,7 @@ obj/
 Storage/videos/
 Storage/metadata.json
 docs/*.md
+
+# Azure deployment credentials
+*.PublishSettings
+.vs/

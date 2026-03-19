@@ -38,7 +38,7 @@
                 <div class="mb-3">
                     <label asp-for="Form.VideoFile" class="form-label">Video File</label>
                     <input asp-for="Form.VideoFile" class="form-control" type="file" accept=".mp4,.webm,.mov" />
-                    <div class="form-text">Accepted formats: .mp4, .webm, .mov (max 500 MB)</div>
+                    <div class="form-text">Accepted formats: .mp4, .webm, .mov (max ~25 MB on Azure; 500 MB locally)</div>
                     <span asp-validation-for="Form.VideoFile" class="text-danger"></span>
                 </div>
 

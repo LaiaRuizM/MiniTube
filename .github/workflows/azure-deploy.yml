@@ -10,7 +10,7 @@ on:
 # What the workflow does
 jobs:
   build-and-deploy:
-    runs-on: windows-latest   # Use a Windows runner (matches Azure Windows App Service)
+    runs-on: ubuntu-latest   # Use a Linux runner (matches Azure Linux App Service)
 
     steps:
       - name: Checkout repository
@@ -28,5 +28,5 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'minitube-laia'  
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
           package: ./publish

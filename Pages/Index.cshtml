@@ -1,5 +1,6 @@
 @page
 @model MiniTube.Pages.IndexModel
+@inject MiniTube.Services.VideoService VideoService
 @{
     ViewData["Title"] = "Home";
 }
@@ -27,7 +28,8 @@
                     <div class="card h-100 video-card">
                         @{
                             var thumbSrc = !string.IsNullOrEmpty(video.ThumbnailFileName)
-                                ? $"/videos/thumbnails/{video.ThumbnailFileName}"
+                                ? VideoService.GetBlobSasUrl($"thumbnails/{video.ThumbnailFileName}")
+                                    ?? $"/videos/thumbnails/{video.ThumbnailFileName}"
                                 : null;
                         }
                         @if (thumbSrc != null)

@@ -18,20 +18,21 @@ public class WatchModel : PageModel
     public string VideoUrl { get; set; } = string.Empty;
     public List<VideoMetadata> OtherVideos { get; set; } = new();
 
-    public IActionResult OnGet(string id)
+    public async Task<IActionResult> OnGetAsync(string id)
     {
         if (string.IsNullOrEmpty(id))
             return RedirectToPage("/Index");
 
-        Video = _videoService.GetById(id);
+        Video = await _videoService.GetByIdAsync(id);
 
         if (Video == null)
             return RedirectToPage("/Index");
 
-        VideoUrl = $"/videos/{Video.FileName}";
+        // Use SAS URL for private blob, or fall back to local path
+        VideoUrl = _videoService.GetBlobSasUrl(Video.FileName)
+                   ?? $"/videos/{Video.FileName}";
 
-        // Load other videos for sidebar (exclude current video)
-        var allVideos = _videoService.GetAll();
+        var allVideos = await _videoService.GetAllAsync();
         OtherVideos = allVideos
             .Where(v => v.Id != id)
             .OrderByDescending(v => v.UploadedAt)

@@ -1,5 +1,6 @@
 @page
 @model MiniTube.Pages.WatchModel
+@inject MiniTube.Services.VideoService VideoService
 @{
     ViewData["Title"] = Model.Video?.Title ?? "Watch";
 }
@@ -59,7 +60,9 @@
                                     <div style="position: relative; aspect-ratio: 16/9; background: #f0f0f0; overflow: hidden;">
                                         @if (!string.IsNullOrEmpty(video.ThumbnailFileName))
                                         {
-                                            <img src="/videos/thumbnails/@video.ThumbnailFileName"
+                                            var sidebarThumbSrc = VideoService.GetBlobSasUrl($"thumbnails/{video.ThumbnailFileName}")
+                                                ?? $"/videos/thumbnails/{video.ThumbnailFileName}";
+                                            <img src="@sidebarThumbSrc"
                                                  alt="@video.Title"
                                                  style="width: 100%; height: 100%; object-fit: cover;" />
                                         }

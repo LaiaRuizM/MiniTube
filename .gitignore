@@ -7,3 +7,10 @@ docs/*.md
 # Azure deployment credentials
 *.PublishSettings
 .vs/
+
+# Secrets (connection strings, API keys)
+appsettings.Development.json
+
+# OS / IDE files
+.DS_Store
+.claude/

@@ -22,9 +22,9 @@ public class EditModel : PageModel
 
     public string[] Categories => VideoService.Categories;
 
-    public void OnGet(string id)
+    public async Task OnGetAsync(string id)
     {
-        var video = _videoService.GetById(id);
+        var video = await _videoService.GetByIdAsync(id);
         if (video == null)
         {
             RedirectToPage("/Index");
@@ -60,11 +60,9 @@ public class EditModel : PageModel
                 return Page();
             }
 
-            // Replace the video file while keeping the same ID
             await _videoService.UpdateVideoFileAsync(Form.Id, Form.VideoFile);
         }
 
-        // Always update metadata
         await _videoService.UpdateMetadataAsync(Form.Id, Form.Title, Form.Description, Form.Category);
 
         return RedirectToPage("/Watch", new { id = Form.Id });

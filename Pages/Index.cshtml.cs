@@ -16,11 +16,10 @@ public class IndexModel : PageModel
 
     public List<VideoMetadata> Videos { get; set; } = new();
 
-    public void OnGet()
+    public async Task OnGetAsync()
     {
-        Videos = _videoService.GetAll()
-            .OrderByDescending(v => v.UploadedAt)
-            .ToList();
+        var all = await _videoService.GetAllAsync();
+        Videos = all.OrderByDescending(v => v.UploadedAt).ToList();
     }
 
     public async Task<IActionResult> OnPostDeleteAsync(string id)

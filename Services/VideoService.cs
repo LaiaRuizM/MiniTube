@@ -1,44 +1,65 @@
-using System.Text.Json;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
+using Azure.Storage.Sas;
+using Microsoft.EntityFrameworkCore;
+using MiniTube.Data;
 using MiniTube.Models;
 
 namespace MiniTube.Services;
 
 public class VideoService
 {
-    private readonly string _videoFolder;
-    private readonly string _metadataPath;
-    private readonly string _thumbnailFolder;
-    private readonly object _lock = new();
+    private readonly MiniTubeDbContext _db;
+    private readonly BlobContainerClient? _blobContainer;
+    private readonly ILogger<VideoService> _logger;
 
     private static readonly string[] AllowedExtensions = { ".mp4", ".webm", ".mov" };
     public static readonly string[] Categories = { "Education", "Entertainment", "Gaming", "Music", "Tech", "Other" };
 
-    public VideoService(IWebHostEnvironment env)
+    public VideoService(MiniTubeDbContext db, IConfiguration config, ILogger<VideoService> logger)
     {
-        var storageRoot = Path.Combine(env.ContentRootPath, "Storage");
-        _videoFolder = Path.Combine(storageRoot, "videos");
-        _metadataPath = Path.Combine(storageRoot, "metadata.json");
-        _thumbnailFolder = Path.Combine(_videoFolder, "thumbnails");
+        _db = db;
+        _logger = logger;
 
-        Directory.CreateDirectory(_videoFolder);
-        Directory.CreateDirectory(_thumbnailFolder);
-    }
+        var blobConnectionString = config["AzureStorage:ConnectionString"];
+        var containerName = config["AzureStorage:ContainerName"] ?? "videos";
 
-    public List<VideoMetadata> GetAll()
-    {
-        lock (_lock)
+        if (!string.IsNullOrEmpty(blobConnectionString))
         {
-            if (!File.Exists(_metadataPath))
-                return new List<VideoMetadata>();
-
-            var json = File.ReadAllText(_metadataPath);
-            return JsonSerializer.Deserialize<List<VideoMetadata>>(json) ?? new List<VideoMetadata>();
+            var blobServiceClient = new BlobServiceClient(blobConnectionString);
+            _blobContainer = blobServiceClient.GetBlobContainerClient(containerName);
+            _blobContainer.CreateIfNotExists();
         }
     }
 
-    public VideoMetadata? GetById(string id)
+    // Generate a temporary signed URL for private blobs (valid for 1 hour)
+    public string? GetBlobSasUrl(string blobName)
     {
-        return GetAll().FirstOrDefault(v => v.Id == id);
+        if (_blobContainer == null) return null;
+
+        var blobClient = _blobContainer.GetBlobClient(blobName);
+        if (!blobClient.CanGenerateSasUri) return null;
+
+        var sasBuilder = new BlobSasBuilder
+        {
+            BlobContainerName = _blobContainer.Name,
+            BlobName = blobName,
+            Resource = "b",
+            ExpiresOn = DateTimeOffset.UtcNow.AddHours(1)
+        };
+        sasBuilder.SetPermissions(BlobSasPermissions.Read);
+
+        return blobClient.GenerateSasUri(sasBuilder).ToString();
+    }
+
+    public async Task<List<VideoMetadata>> GetAllAsync()
+    {
+        return await _db.Videos.ToListAsync();
+    }
+
+    public async Task<VideoMetadata?> GetByIdAsync(string id)
+    {
+        return await _db.Videos.FindAsync(id);
     }
 
     public async Task<VideoMetadata> SaveVideoAsync(UploadForm form)
@@ -47,7 +68,7 @@ public class VideoService
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
 
         if (!AllowedExtensions.Contains(extension))
-            throw new InvalidOperationException($"File type '{extension}' is not allowed. Allowed: {string.Join(", ", AllowedExtensions)}");
+            throw new InvalidOperationException($"File type '{extension}' is not allowed.");
 
         var metadata = new VideoMetadata
         {
@@ -59,69 +80,59 @@ public class VideoService
             FileSizeBytes = file.Length
         };
 
-        // Save the video file to disk
-        var filePath = Path.Combine(_videoFolder, metadata.FileName);
-        using (var stream = new FileStream(filePath, FileMode.Create))
+        // Upload video to Blob Storage
+        if (_blobContainer != null)
         {
-            await file.CopyToAsync(stream);
+            var blobClient = _blobContainer.GetBlobClient(metadata.FileName);
+            using var stream = file.OpenReadStream();
+            await blobClient.UploadAsync(stream, new BlobHttpHeaders
+            {
+                ContentType = GetContentType(extension)
+            });
+            metadata.BlobUrl = blobClient.Uri.ToString();
         }
 
-        // Generate thumbnail from video
-        metadata.ThumbnailFileName = await GenerateThumbnailAsync(filePath, metadata.Id);
+        // Generate thumbnail and upload to Blob Storage
+        await GenerateAndUploadThumbnailAsync(metadata, file);
 
-        // Append metadata to JSON
-        lock (_lock)
-        {
-            var videos = GetAllUnsafe();
-            videos.Add(metadata);
-            var json = JsonSerializer.Serialize(videos, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(_metadataPath, json);
-        }
+        _db.Videos.Add(metadata);
+        await _db.SaveChangesAsync();
 
         return metadata;
     }
 
-    public Task UpdateMetadataAsync(string id, string title, string? description, string category)
+    public async Task UpdateMetadataAsync(string id, string title, string? description, string category)
     {
-        lock (_lock)
+        var video = await _db.Videos.FindAsync(id);
+        if (video != null)
         {
-            var videos = GetAllUnsafe();
-            var video = videos.FirstOrDefault(v => v.Id == id);
-            if (video != null)
-            {
-                video.Title = title;
-                video.Description = description ?? string.Empty;
-                video.Category = category;
-                var json = JsonSerializer.Serialize(videos, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(_metadataPath, json);
-            }
+            video.Title = title;
+            video.Description = description ?? string.Empty;
+            video.Category = category;
+            await _db.SaveChangesAsync();
         }
-        return Task.CompletedTask;
     }
 
-    public Task DeleteVideoAsync(string id)
+    public async Task DeleteVideoAsync(string id)
     {
-        lock (_lock)
+        var video = await _db.Videos.FindAsync(id);
+        if (video != null)
         {
-            var videos = GetAllUnsafe();
-            var video = videos.FirstOrDefault(v => v.Id == id);
-            if (video != null)
+            if (_blobContainer != null)
             {
-                var videoPath = Path.Combine(_videoFolder, video.FileName);
-                if (File.Exists(videoPath)) File.Delete(videoPath);
+                var blobClient = _blobContainer.GetBlobClient(video.FileName);
+                await blobClient.DeleteIfExistsAsync();
 
                 if (!string.IsNullOrEmpty(video.ThumbnailFileName))
                 {
-                    var thumbPath = Path.Combine(_thumbnailFolder, video.ThumbnailFileName);
-                    if (File.Exists(thumbPath)) File.Delete(thumbPath);
+                    var thumbClient = _blobContainer.GetBlobClient($"thumbnails/{video.ThumbnailFileName}");
+                    await thumbClient.DeleteIfExistsAsync();
                 }
-
-                videos.Remove(video);
-                var json = JsonSerializer.Serialize(videos, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(_metadataPath, json);
             }
+
+            _db.Videos.Remove(video);
+            await _db.SaveChangesAsync();
         }
-        return Task.CompletedTask;
     }
 
     public async Task UpdateVideoFileAsync(string id, IFormFile newVideoFile)
@@ -130,99 +141,99 @@ public class VideoService
         if (!AllowedExtensions.Contains(extension))
             throw new InvalidOperationException($"File type '{extension}' is not allowed.");
 
-        string newFileName;
-        lock (_lock)
+        var video = await _db.Videos.FindAsync(id);
+        if (video == null) return;
+
+        if (_blobContainer != null)
         {
-            var videos = GetAllUnsafe();
-            var video = videos.FirstOrDefault(v => v.Id == id);
-            if (video == null)
-                return;
+            var oldBlobClient = _blobContainer.GetBlobClient(video.FileName);
+            await oldBlobClient.DeleteIfExistsAsync();
 
-            // Delete old video file
-            var oldVideoPath = Path.Combine(_videoFolder, video.FileName);
-            if (File.Exists(oldVideoPath)) File.Delete(oldVideoPath);
-
-            // Delete old thumbnail
             if (!string.IsNullOrEmpty(video.ThumbnailFileName))
             {
-                var oldThumbPath = Path.Combine(_thumbnailFolder, video.ThumbnailFileName);
-                if (File.Exists(oldThumbPath)) File.Delete(oldThumbPath);
+                var oldThumbClient = _blobContainer.GetBlobClient($"thumbnails/{video.ThumbnailFileName}");
+                await oldThumbClient.DeleteIfExistsAsync();
             }
-
-            // Generate new filename
-            newFileName = $"{Guid.NewGuid()}{extension}";
-            video.FileName = newFileName;
-            video.FileSizeBytes = newVideoFile.Length;
-            video.ThumbnailFileName = null;
-
-            var json = JsonSerializer.Serialize(videos, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(_metadataPath, json);
         }
 
-        // Save new video file outside of lock
-        var newFilePath = Path.Combine(_videoFolder, newFileName);
-        using (var stream = new FileStream(newFilePath, FileMode.Create))
-        {
-            await newVideoFile.CopyToAsync(stream);
-        }
+        var newFileName = $"{Guid.NewGuid()}{extension}";
+        video.FileName = newFileName;
+        video.FileSizeBytes = newVideoFile.Length;
 
-        // Generate new thumbnail
-        var thumbnailFileName = await GenerateThumbnailAsync(newFilePath, id);
-
-        // Update metadata with thumbnail
-        lock (_lock)
+        if (_blobContainer != null)
         {
-            var videos = GetAllUnsafe();
-            var video = videos.FirstOrDefault(v => v.Id == id);
-            if (video != null)
+            var blobClient = _blobContainer.GetBlobClient(newFileName);
+            using var stream = newVideoFile.OpenReadStream();
+            await blobClient.UploadAsync(stream, new BlobHttpHeaders
             {
-                video.ThumbnailFileName = thumbnailFileName;
-                var json = JsonSerializer.Serialize(videos, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(_metadataPath, json);
-            }
+                ContentType = GetContentType(extension)
+            });
+            video.BlobUrl = blobClient.Uri.ToString();
         }
+
+        await GenerateAndUploadThumbnailAsync(video, newVideoFile);
+        await _db.SaveChangesAsync();
     }
 
-
-    private async Task<string?> GenerateThumbnailAsync(string videoFilePath, string videoId)
+    private async Task GenerateAndUploadThumbnailAsync(VideoMetadata metadata, IFormFile videoFile)
     {
-        var outputFileName = $"{videoId}.jpg";
-        var outputPath = Path.Combine(_thumbnailFolder, outputFileName);
-
-        var psi = new System.Diagnostics.ProcessStartInfo
-        {
-            FileName = "ffmpeg",
-            Arguments = $"-y -ss 2 -i \"{videoFilePath}\" -vframes 1 -q:v 2 -update 1 \"{outputPath}\"",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
         try
         {
+            var tempVideoPath = Path.Combine(Path.GetTempPath(), metadata.FileName);
+            var tempThumbPath = Path.Combine(Path.GetTempPath(), $"{metadata.Id}.jpg");
+
+            if (!File.Exists(tempVideoPath))
+            {
+                using var tempStream = new FileStream(tempVideoPath, FileMode.Create);
+                await videoFile.OpenReadStream().CopyToAsync(tempStream);
+            }
+
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "ffmpeg",
+                Arguments = $"-y -ss 2 -i \"{tempVideoPath}\" -vframes 1 -q:v 2 -update 1 \"{tempThumbPath}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
             using var process = System.Diagnostics.Process.Start(psi);
-            if (process == null) return null;
-            await process.WaitForExitAsync();
-            return process.ExitCode == 0 && File.Exists(outputPath) ? outputFileName : null;
+            if (process != null)
+            {
+                await process.WaitForExitAsync();
+                if (process.ExitCode == 0 && File.Exists(tempThumbPath))
+                {
+                    var thumbFileName = $"{metadata.Id}.jpg";
+                    metadata.ThumbnailFileName = thumbFileName;
+
+                    if (_blobContainer != null)
+                    {
+                        var thumbBlobClient = _blobContainer.GetBlobClient($"thumbnails/{thumbFileName}");
+                        using var thumbStream = File.OpenRead(tempThumbPath);
+                        await thumbBlobClient.UploadAsync(thumbStream, new BlobHttpHeaders
+                        {
+                            ContentType = "image/jpeg"
+                        });
+                        metadata.ThumbnailBlobUrl = thumbBlobClient.Uri.ToString();
+                    }
+                }
+            }
+
+            if (File.Exists(tempVideoPath)) File.Delete(tempVideoPath);
+            if (File.Exists(tempThumbPath)) File.Delete(tempThumbPath);
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            _logger.LogWarning(ex, "Failed to generate thumbnail for video {VideoId}", metadata.Id);
         }
     }
 
-    public string GetVideoFilePath(string fileName)
+    private static string GetContentType(string extension) => extension switch
     {
-        return Path.Combine(_videoFolder, fileName);
-    }
-
-    private List<VideoMetadata> GetAllUnsafe()
-    {
-        if (!File.Exists(_metadataPath))
-            return new List<VideoMetadata>();
-
-        var json = File.ReadAllText(_metadataPath);
-        return JsonSerializer.Deserialize<List<VideoMetadata>>(json) ?? new List<VideoMetadata>();
-    }
+        ".mp4" => "video/mp4",
+        ".webm" => "video/webm",
+        ".mov" => "video/quicktime",
+        _ => "application/octet-stream"
+    };
 }

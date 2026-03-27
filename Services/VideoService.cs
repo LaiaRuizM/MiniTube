@@ -62,7 +62,19 @@ public class VideoService
         return await _db.Videos.FindAsync(id);
     }
 
-    public async Task<VideoMetadata> SaveVideoAsync(UploadForm form)
+    public async Task<bool> CanUserEditAsync(string videoId, string? userEmail, bool isAdmin)
+    {
+        if (isAdmin) return true;
+        if (string.IsNullOrEmpty(userEmail)) return false;
+
+        var video = await _db.Videos.FindAsync(videoId);
+        if (video == null) return false;
+
+        return video.OwnerEmail != null &&
+               video.OwnerEmail.Equals(userEmail, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public async Task<VideoMetadata> SaveVideoAsync(UploadForm form, string? ownerEmail, string? ownerName)
     {
         var file = form.VideoFile!;
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
@@ -77,7 +89,9 @@ public class VideoService
             Category = form.Category,
             FileName = $"{Guid.NewGuid()}{extension}",
             UploadedAt = DateTime.UtcNow,
-            FileSizeBytes = file.Length
+            FileSizeBytes = file.Length,
+            OwnerEmail = ownerEmail,
+            OwnerName = ownerName
         };
 
         // Upload video to Blob Storage

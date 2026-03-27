@@ -25,14 +25,22 @@
                     <small>@FormatFileSize(Model.Video.FileSizeBytes)</small>
                 </div>
 
-                <div class="d-flex gap-2 mb-3">
-                    <a href="/Edit?id=@Model.Video.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
-                    <form method="post" asp-page-handler="Delete" style="display:inline">
-                        <input type="hidden" name="id" value="@Model.Video.Id" />
-                        <button type="submit" class="btn btn-sm btn-outline-danger"
-                                onclick="return confirm('Delete this video?')">Delete</button>
-                    </form>
-                </div>
+                @if (Model.CanEdit)
+                {
+                    <div class="d-flex gap-2 mb-3">
+                        <a href="/Edit?id=@Model.Video.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                        <form method="post" asp-page-handler="Delete" style="display:inline">
+                            <input type="hidden" name="id" value="@Model.Video.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger"
+                                    onclick="return confirm('Delete this video?')">Delete</button>
+                        </form>
+                    </div>
+                }
+
+                @if (Model.Video.OwnerName != null)
+                {
+                    <small class="text-muted">Uploaded by @Model.Video.OwnerName</small>
+                }
 
                 @if (!string.IsNullOrWhiteSpace(Model.Video.Description))
                 {

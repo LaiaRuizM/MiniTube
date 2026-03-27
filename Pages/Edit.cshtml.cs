@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using MiniTube.Models;
@@ -5,10 +7,11 @@ using MiniTube.Services;
 
 namespace MiniTube.Pages;
 
+[Authorize]
 public class EditModel : PageModel
 {
     private readonly VideoService _videoService;
-    private const long MaxFileSize = 500 * 1024 * 1024; // 500 MB
+    private const long MaxFileSize = 500 * 1024 * 1024;
 
     public EditModel(VideoService videoService)
     {
@@ -22,20 +25,25 @@ public class EditModel : PageModel
 
     public string[] Categories => VideoService.Categories;
 
-    public async Task OnGetAsync(string id)
+    public async Task<IActionResult> OnGetAsync(string id)
     {
         var video = await _videoService.GetByIdAsync(id);
         if (video == null)
-        {
-            RedirectToPage("/Index");
-            return;
-        }
+            return RedirectToPage("/Index");
+
+        // Check ownership
+        var email = User.FindFirstValue(ClaimTypes.Email);
+        var isAdmin = User.HasClaim("IsAdmin", "true");
+        if (!await _videoService.CanUserEditAsync(id, email, isAdmin))
+            return RedirectToPage("/Index");
 
         Video = video;
         Form.Id = video.Id;
         Form.Title = video.Title;
         Form.Description = video.Description;
         Form.Category = video.Category;
+
+        return Page();
     }
 
     public async Task<IActionResult> OnPostAsync()
@@ -43,7 +51,12 @@ public class EditModel : PageModel
         if (!ModelState.IsValid)
             return Page();
 
-        // If a new video file is provided, replace the video
+        // Check ownership
+        var email = User.FindFirstValue(ClaimTypes.Email);
+        var isAdmin = User.HasClaim("IsAdmin", "true");
+        if (!await _videoService.CanUserEditAsync(Form.Id, email, isAdmin))
+            return RedirectToPage("/Index");
+
         if (Form.VideoFile != null && Form.VideoFile.Length > 0)
         {
             if (Form.VideoFile.Length > MaxFileSize)

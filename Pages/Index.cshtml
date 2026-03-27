@@ -1,5 +1,6 @@
 @page
 @model MiniTube.Pages.IndexModel
+@using System.Security.Claims
 @inject MiniTube.Services.VideoService VideoService
 @{
     ViewData["Title"] = "Home";
@@ -8,7 +9,10 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Videos</h1>
-        <a href="/Upload" class="btn btn-primary">Upload Video</a>
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <a href="/Upload" class="btn btn-primary">Upload Video</a>
+        }
     </div>
 
     @if (!Model.Videos.Any())
@@ -16,7 +20,14 @@
         <div class="text-center py-5">
             <h4 class="text-muted">No videos yet</h4>
             <p class="text-muted">Upload your first video to get started.</p>
-            <a href="/Upload" class="btn btn-outline-primary">Upload Video</a>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <a href="/Upload" class="btn btn-outline-primary">Upload Video</a>
+            }
+            else
+            {
+                <a href="/Account/Login" class="btn btn-outline-primary">Sign in to Upload</a>
+            }
         </div>
     }
     else
@@ -60,14 +71,23 @@
                         </div>
                         <div class="card-footer d-flex justify-content-between align-items-center">
                             <small class="text-muted">@video.UploadedAt.ToString("MMM dd, yyyy")</small>
+                            @{
+                                var userEmail = User.FindFirstValue(System.Security.Claims.ClaimTypes.Email);
+                                var canEdit = User.Identity?.IsAuthenticated == true &&
+                                    (Model.IsAdmin || (video.OwnerEmail != null &&
+                                     video.OwnerEmail.Equals(userEmail, StringComparison.OrdinalIgnoreCase)));
+                            }
                             <div class="d-flex gap-2">
                                 <a href="/Watch?id=@video.Id" class="btn btn-sm btn-outline-primary">Watch</a>
-                                <a href="/Edit?id=@video.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
-                                <form method="post" asp-page-handler="Delete" style="display:inline">
-                                    <input type="hidden" name="id" value="@video.Id" />
-                                    <button type="submit" class="btn btn-sm btn-outline-danger"
-                                            onclick="return confirm('Delete this video?')">Delete</button>
-                                </form>
+                                @if (canEdit)
+                                {
+                                    <a href="/Edit?id=@video.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                    <form method="post" asp-page-handler="Delete" style="display:inline">
+                                        <input type="hidden" name="id" value="@video.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                onclick="return confirm('Delete this video?')">Delete</button>
+                                    </form>
+                                }
                             </div>
                         </div>
                     </div>

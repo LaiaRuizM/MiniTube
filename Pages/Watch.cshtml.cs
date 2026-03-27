@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using MiniTube.Models;
@@ -17,6 +18,7 @@ public class WatchModel : PageModel
     public VideoMetadata? Video { get; set; }
     public string VideoUrl { get; set; } = string.Empty;
     public List<VideoMetadata> OtherVideos { get; set; } = new();
+    public bool CanEdit { get; set; }
 
     public async Task<IActionResult> OnGetAsync(string id)
     {
@@ -28,7 +30,6 @@ public class WatchModel : PageModel
         if (Video == null)
             return RedirectToPage("/Index");
 
-        // Use SAS URL for private blob, or fall back to local path
         VideoUrl = _videoService.GetBlobSasUrl(Video.FileName)
                    ?? $"/videos/{Video.FileName}";
 
@@ -38,11 +39,26 @@ public class WatchModel : PageModel
             .OrderByDescending(v => v.UploadedAt)
             .ToList();
 
+        // Check if current user can edit/delete this video
+        var email = User.FindFirstValue(ClaimTypes.Email);
+        var isAdmin = User.HasClaim("IsAdmin", "true");
+        CanEdit = User.Identity?.IsAuthenticated == true &&
+                  (isAdmin || (Video.OwnerEmail != null &&
+                   Video.OwnerEmail.Equals(email, StringComparison.OrdinalIgnoreCase)));
+
         return Page();
     }
 
     public async Task<IActionResult> OnPostDeleteAsync(string id)
     {
+        if (!(User.Identity?.IsAuthenticated ?? false))
+            return Challenge();
+
+        var email = User.FindFirstValue(ClaimTypes.Email);
+        var isAdmin = User.HasClaim("IsAdmin", "true");
+        if (!await _videoService.CanUserEditAsync(id, email, isAdmin))
+            return Forbid();
+
         await _videoService.DeleteVideoAsync(id);
         return RedirectToPage("/Index");
     }

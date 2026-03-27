@@ -21,6 +21,8 @@ public class MiniTubeDbContext : DbContext
             entity.Property(v => v.ThumbnailFileName).HasMaxLength(260);
             entity.Property(v => v.BlobUrl).HasMaxLength(500);
             entity.Property(v => v.ThumbnailBlobUrl).HasMaxLength(500);
+            entity.Property(v => v.OwnerEmail).HasMaxLength(100);
+            entity.Property(v => v.OwnerName).HasMaxLength(200);
         });
     }
 }

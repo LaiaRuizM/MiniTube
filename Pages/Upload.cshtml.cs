@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using MiniTube.Models;
@@ -5,12 +7,13 @@ using MiniTube.Services;
 
 namespace MiniTube.Pages;
 
+[Authorize]
 [RequestSizeLimit(500 * 1024 * 1024)]
 [RequestFormLimits(MultipartBodyLengthLimit = 500 * 1024 * 1024)]
 public class UploadModel : PageModel
 {
     private readonly VideoService _videoService;
-    private const long MaxFileSize = 500 * 1024 * 1024; // 500 MB
+    private const long MaxFileSize = 500 * 1024 * 1024;
 
     public UploadModel(VideoService videoService)
     {
@@ -22,9 +25,7 @@ public class UploadModel : PageModel
 
     public string[] Categories => VideoService.Categories;
 
-    public void OnGet()
-    {
-    }
+    public void OnGet() { }
 
     public async Task<IActionResult> OnPostAsync()
     {
@@ -45,7 +46,9 @@ public class UploadModel : PageModel
             return Page();
         }
 
-        await _videoService.SaveVideoAsync(Form);
+        var email = User.FindFirstValue(ClaimTypes.Email);
+        var name = User.FindFirstValue(ClaimTypes.Name);
+        await _videoService.SaveVideoAsync(Form, email, name);
 
         return RedirectToPage("/Index");
     }

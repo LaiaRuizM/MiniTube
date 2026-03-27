@@ -32,4 +32,11 @@ public class VideoMetadata
 
     [MaxLength(500)]
     public string? ThumbnailBlobUrl { get; set; }
+
+    // Ownership (who uploaded this video)
+    [MaxLength(100)]
+    public string? OwnerEmail { get; set; }
+
+    [MaxLength(200)]
+    public string? OwnerName { get; set; }
 }

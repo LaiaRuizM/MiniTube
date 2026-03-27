@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.EntityFrameworkCore;
 using MiniTube.Data;
 using MiniTube.Services;
@@ -21,8 +24,24 @@ builder.Services.AddDbContext<MiniTubeDbContext>(options =>
             maxRetryDelay: TimeSpan.FromSeconds(30),
             errorNumbersToAdd: null)));
 
-// Register VideoService (now uses DbContext + Blob Storage)
+// Register VideoService
 builder.Services.AddScoped<VideoService>();
+
+// Authentication: Cookie + Google OAuth
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
+})
+.AddCookie()
+.AddGoogle(options =>
+{
+    options.ClientId = builder.Configuration["Google:ClientId"] ?? "";
+    options.ClientSecret = builder.Configuration["Google:ClientSecret"] ?? "";
+});
+
+// Admin claims transformation (adds IsAdmin claim for admin email)
+builder.Services.AddTransient<IClaimsTransformation, AdminClaimsTransformation>();
 
 var app = builder.Build();
 
@@ -57,6 +76,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 app.UseRouting();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapRazorPages();
 

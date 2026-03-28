@@ -1,31 +1,34 @@
 # MiniTube
 
-**A clean, minimal video platform built with C# and ASP.NET Core — designed to showcase enterprise backend skills.**
+**A clean, minimal video platform built with C# and ASP.NET Core — deployed on Azure with full cloud architecture.**
 
-Upload, browse, and play videos from a simple web UI. No cloud dependencies, no complex setup — just `dotnet run`.
+Upload, browse, and play videos with Google OAuth authentication, Azure SQL Database, and Azure Blob Storage.
 
 ![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat&logo=dotnet)
 ![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-Razor%20Pages-512BD4?style=flat)
+![Azure](https://img.shields.io/badge/Azure-App%20Service-0078D4?style=flat&logo=microsoftazure)
+![Google OAuth](https://img.shields.io/badge/Auth-Google%20OAuth%202.0-4285F4?style=flat&logo=google)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat)
 
 ---
 
-## Quick Start
+## Live Demo
 
-Run the project locally in seconds:
+**[https://minitube-laia-h2drgjdkd8hsg8cq.canadacentral-01.azurewebsites.net](https://minitube-laia-h2drgjdkd8hsg8cq.canadacentral-01.azurewebsites.net)**
+
+Sign in with Google to upload videos. Browse and watch without login.
+
+---
+
+## Quick Start (Local Development)
 
 ```bash
-# Clone the repository
 git clone https://github.com/LaiaRuizM/MiniTube.git
-
-# Navigate into the project
 cd MiniTube
-
-# Run the application
 dotnet run
 ```
 
-Open **http://localhost:5028** → Upload a video → Watch it play.
+Open **http://localhost:5028** → Sign in with Google → Upload a video → Watch it play.
 
 ---
 
@@ -33,13 +36,16 @@ Open **http://localhost:5028** → Upload a video → Watch it play.
 
 | Feature | Description |
 |---------|-------------|
-| **Upload** | Drag-and-drop `.mp4`, `.webm`, `.mov` files (up to 500 MB) with title, description, and category |
-| **Browse** | Responsive card grid showing all uploaded videos, sorted by newest first |
-| **Play** | In-browser `<video>` player with full metadata display |
-| **Validate** | Server-side validation with data annotations — file type, size, required fields |
-| **Persist** | Metadata stored in JSON, video files on local disk — zero database setup needed |
-| **Edit & Delete** | Update video metadata or remove videos entirely |
-| **Thumbnails** | Auto-generated from video frames (2-second mark) for visual browsing |
+| **Upload** | `.mp4`, `.webm`, `.mov` files (up to 500 MB locally, ~25 MB on Azure) with title, description, and category |
+| **Browse** | Responsive card grid with auto-generated thumbnails, sorted by newest first |
+| **Play** | HTML5 `<video>` player with "Other Videos" sidebar |
+| **Edit & Delete** | Update video metadata, replace video files, or remove entirely |
+| **Thumbnails** | Auto-generated from video frames at the 2-second mark using FFmpeg |
+| **Google OAuth** | Sign in with Gmail — users can only edit/delete their own videos |
+| **Admin Role** | Admin has full control over all videos |
+| **Cloud Storage** | Videos and thumbnails stored in Azure Blob Storage (persistent) |
+| **SQL Database** | Video metadata stored in Azure SQL Database (persistent) |
+| **CI/CD** | Auto-deploy on push via GitHub Actions |
 
 ---
 
@@ -53,9 +59,7 @@ Browse all uploaded videos in a clean, responsive grid. Each card shows:
 - **Thumbnail preview** — Auto-generated from the video's 2-second frame
 - **Video title** and category badge
 - **Upload date** for sorting context
-- **Action buttons** — Watch, Edit, or Delete
-
-Videos are sorted by newest first, making it easy to find recent uploads.
+- **Action buttons** — Watch, Edit, or Delete (owner/admin only)
 
 ---
 
@@ -63,146 +67,54 @@ Videos are sorted by newest first, making it easy to find recent uploads.
 
 ![MiniTube Watch Page](docs/screenshots/watch-page.png)
 
-Clean two-column layout optimized for focused viewing:
-
-**Left side (8 columns):**
+Two-column layout optimized for focused viewing:
 - Full-featured HTML5 `<video>` player with controls
-- Video title, category, upload date, and file size
-- Video description in a card
-- Edit and Delete buttons for quick access
-- "Back to videos" link for navigation
-
-**Right sidebar (4 columns):**
-- **"Other Videos"** section showing all other uploaded videos
-- Thumbnail previews for quick visual scanning
-- Video metadata (title, category, date)
-- Click any video to watch — no page reload needed
-- Sticky positioning keeps the sidebar visible while scrolling
+- Video metadata (title, category, date, file size, uploader)
+- **"Other Videos"** sidebar with thumbnail previews
+- Edit/Delete buttons visible only to the video owner or admin
 
 ---
 
 ## Architecture
 
-### Local Development
-```
-Browser (http://localhost:5028)
-    │
-    ▼
-Kestrel (ASP.NET Core 8)
-    │
-    ▼
-Storage/ (Local Disk)
-├── videos/
-├── videos/thumbnails/
-└── metadata.json
-```
-
-### Azure Deployment (Phase 1)
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Developer PC                             │
-│                     git push origin main                         │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                        GitHub Actions                            │
-│  .github/workflows/azure-deploy.yml                             │
-│  1. Checkout code                                               │
-│  2. dotnet publish                                              │
-│  3. Deploy to Azure  ──────────────────────────────────────────▶│
-└─────────────────────────────────────────────────────────────────┘
-                                                   │
-                                                   ▼
-┌─────────────────────────────────────────────────────────────────┐
-│            Azure (Resource Group: minitube-rg)                   │
-│                                                                 │
-│  App Service: minitube-laia.azurewebsites.net                  │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  Azure Load Balancer (proxy, 28.6 MB upload limit)      │   │
-│  │           │                                             │   │
-│  │           ▼                                             │   │
-│  │  IIS + AspNetCoreModuleV2 (web.config)                  │   │
-│  │           │                                             │   │
-│  │           ▼                                             │   │
-│  │  Kestrel (ASP.NET Core 8, Razor Pages)                  │   │
-│  │           │                                             │   │
-│  │           ▼                                             │   │
-│  │  Ephemeral Local Disk (⚠ Wiped on restart)              │   │
-│  │  ├── Storage/videos/                                    │   │
-│  │  ├── Storage/videos/thumbnails/                         │   │
-│  │  └── metadata.json                                      │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  **Phase 2:** Azure Blob Storage + Azure SQL Database           │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Upload Flow
-
-The following sequence diagram shows the primary interactions between the browser, the Upload PageModel, VideoService, and the underlying storage when a user uploads a video.
-
 ```mermaid
-sequenceDiagram
-    participant Browser
-    participant UploadModel
-    participant VideoService
-    participant FileSystem
-    participant MetadataJSON as metadata.json
-
-    Browser->>UploadModel: POST /Upload (multipart form data)
-    UploadModel->>UploadModel: Validate ModelState
-    alt Validation fails
-        UploadModel-->>Browser: Re-render Upload page with errors
-    else Validation passes
-        UploadModel->>VideoService: SaveVideoAsync(UploadForm)
-        VideoService->>VideoService: Generate unique Id & FileName
-        VideoService->>FileSystem: Write video file to Storage/videos/
-        FileSystem-->>VideoService: File written successfully
-        VideoService->>MetadataJSON: Read existing metadata list
-        VideoService->>MetadataJSON: Append new VideoMetadata & write back
-        MetadataJSON-->>VideoService: Metadata persisted
-        VideoService-->>UploadModel: Return success
-        UploadModel-->>Browser: 302 Redirect to /Index
-        Browser->>Browser: GET /Index (display video list)
+graph TB
+    subgraph "Client"
+        Browser["Browser"]
     end
+
+    subgraph "GitHub"
+        Repo["GitHub Repository"]
+        Actions["GitHub Actions CI/CD"]
+    end
+
+    subgraph "Google Cloud"
+        GoogleAuth["Google OAuth 2.0"]
+    end
+
+    subgraph "Azure (Resource Group: minitube-rg)"
+        AppService["Azure App Service<br/>(ASP.NET Core 8, Razor Pages)<br/>F1 Free Tier"]
+        SQL["Azure SQL Database<br/>(Video metadata)<br/>Free Tier (32 GB)"]
+        Blob["Azure Blob Storage<br/>(Videos + Thumbnails)<br/>LRS Standard"]
+    end
+
+    Browser -->|"HTTPS"| AppService
+    Browser -->|"Sign in"| GoogleAuth
+    GoogleAuth -->|"OAuth token"| AppService
+    Repo -->|"git push"| Actions
+    Actions -->|"Deploy"| AppService
+    AppService -->|"EF Core"| SQL
+    AppService -->|"Blob SDK"| Blob
+    Browser -->|"Stream video"| Blob
 ```
 
-### Playback Flow
+### How It Works
 
-This diagram shows the complete end-to-end flow: the browser requests the Watch page, the server fetches metadata and renders HTML, then the browser's `<video>` element requests the actual video file which is served by the StaticFiles middleware.
-
-```mermaid
-sequenceDiagram
-    participant Browser
-    participant Kestrel
-    participant Middleware as ASP.NET Middleware
-    participant WatchModel
-    participant VideoService
-    participant JSON as metadata.json
-    participant StaticFiles as StaticFiles Middleware
-    participant Disk as Storage/videos/
-
-    Browser->>Kestrel: GET /Watch?id={guid}
-    Kestrel->>Middleware: Route request
-    Middleware->>WatchModel: OnGet(id)
-    WatchModel->>VideoService: GetById(id)
-    VideoService->>JSON: Read metadata.json
-    JSON-->>VideoService: JSON content
-    VideoService->>VideoService: Deserialize & FirstOrDefault(id)
-    VideoService-->>WatchModel: VideoMetadata
-    WatchModel->>WatchModel: Set Video & VideoUrl properties
-    WatchModel-->>Middleware: Razor renders Watch.cshtml
-    Middleware-->>Kestrel: HTML response
-    Kestrel-->>Browser: HTML with <video src="/videos/{filename}">
-
-    Browser->>Kestrel: GET /videos/{filename}
-    Kestrel->>StaticFiles: Match request path
-    StaticFiles->>Disk: Read video file via PhysicalFileProvider
-    Disk-->>StaticFiles: File bytes
-    StaticFiles-->>Kestrel: 200 OK + video bytes
-    Kestrel-->>Browser: Video stream (progressive download)
-```
+1. **User visits the site** → Azure App Service serves the Razor Pages app
+2. **User signs in** → Google OAuth authenticates and returns user info
+3. **User uploads a video** → Video file goes to Azure Blob Storage, metadata to Azure SQL Database
+4. **User watches a video** → App generates a temporary SAS URL for secure blob access
+5. **CI/CD** → Every `git push` triggers GitHub Actions to auto-deploy
 
 ---
 
@@ -211,13 +123,15 @@ sequenceDiagram
 | Area | What's Used | Why It Matters |
 |------|-------------|----------------|
 | **Framework** | ASP.NET Core 8, Razor Pages | Industry-standard enterprise web framework |
-| **Architecture** | Pages → Services → Storage separation | Clean layering, ready for DI swap to database/cloud |
-| **Model Binding** | `[BindProperty]`, `IFormFile` | Core ASP.NET skill for form handling |
-| **Validation** | Data Annotations (`[Required]`, `[MaxLength]`) | Server-side validation pipeline |
-| **Dependency Injection** | `builder.Services.AddSingleton<VideoService>()` | First-class DI, easy to swap implementations |
-| **File I/O** | `FileStream`, `async/await`, `System.Text.Json` | Real file handling with async patterns |
-| **Static Files** | `PhysicalFileProvider`, custom `StaticFileOptions` | Serving user-uploaded content securely |
-| **Thread Safety** | `lock` on shared JSON metadata | Concurrency awareness for singleton services |
+| **Database** | Azure SQL Database, Entity Framework Core | Production-grade relational data with ORM |
+| **Cloud Storage** | Azure Blob Storage | Scalable file storage with SAS token security |
+| **Authentication** | Google OAuth 2.0 | Real-world SSO integration |
+| **Authorization** | Claims-based roles (Admin/User) | Role-based access control with ownership checks |
+| **CI/CD** | GitHub Actions | Automated deployment pipeline |
+| **Cloud Hosting** | Azure App Service (Linux, F1) | Real cloud deployment with environment configuration |
+| **Architecture** | Pages → Services → Azure | Clean layering with dependency injection |
+| **Validation** | Data Annotations, server-side checks | Input validation at every layer |
+| **Security** | Secrets in env vars, SAS tokens, HTTPS | Cloud security best practices |
 
 ---
 
@@ -225,44 +139,41 @@ sequenceDiagram
 
 ```
 MiniTube/
+├── Data/
+│   └── MiniTubeDbContext.cs      # EF Core database context
 ├── Models/
-│   ├── VideoMetadata.cs        # Domain model
-│   └── UploadForm.cs           # Form model with validation
+│   ├── VideoMetadata.cs          # Domain model (SQL table)
+│   ├── UploadForm.cs             # Upload form validation
+│   └── EditForm.cs               # Edit form validation
 ├── Services/
-│   └── VideoService.cs         # Business logic + persistence
+│   ├── VideoService.cs           # Business logic (SQL + Blob)
+│   └── AdminClaimsTransformation.cs  # Admin role assignment
+├── Migrations/                   # EF Core database migrations
 ├── Pages/
-│   ├── Index.cshtml / .cs      # Video listing (home)
-│   ├── Upload.cshtml / .cs     # Upload form + handler
-│   ├── Watch.cshtml / .cs      # Video player page
-│   └── Shared/_Layout.cshtml   # Shared layout with nav
-├── Storage/
-│   ├── videos/                 # Uploaded files (gitignored)
-│   └── metadata.json           # Video metadata (gitignored)
-├── Program.cs                  # App config, DI, middleware
-└── docs/
-    ├── upload-flow.md          # 10 upload architecture diagrams
-    └── playback-flow.md        # 10 playback architecture diagrams
+│   ├── Index.cshtml / .cs        # Video listing (public)
+│   ├── Upload.cshtml / .cs       # Upload form (auth required)
+│   ├── Watch.cshtml / .cs        # Video player (public)
+│   ├── Edit.cshtml / .cs         # Edit form (owner/admin)
+│   ├── Account/
+│   │   ├── Login.cshtml.cs       # Google OAuth redirect
+│   │   └── Logout.cshtml.cs      # Sign out handler
+│   └── Shared/_Layout.cshtml     # Nav with login/logout UI
+├── .github/workflows/
+│   └── azure-deploy.yml          # CI/CD pipeline
+├── Program.cs                    # App config, DI, auth, middleware
+└── web.config                    # IIS configuration for Azure
 ```
 
 ---
 
-## Roadmap
+## Development Phases
 
-### Phase 2 — Polish & Features
-- SQLite + Entity Framework Core (replace JSON storage)
-- Thumbnail generation (FFmpeg or placeholder images)
-- Search by title, filter by category
-- Pagination
-- REST API (`/api/videos`) alongside Razor Pages
-- ASP.NET Core Identity (cookie auth)
-
-### Phase 3 — Architecture & Cloud-Ready
-- Background processing with `BackgroundService` (upload post-processing)
-- Clean Architecture: `MiniTube.Core` / `MiniTube.Infrastructure` / `MiniTube.Web`
-- `IVideoStorage` interface → swap local disk for Azure Blob Storage
-- Docker + docker-compose
-- Unit & integration tests with `WebApplicationFactory`
-- CDN-ready video delivery design
+| Phase | What Was Built |
+|-------|---------------|
+| **Phase 1** | MVP — Upload, list, and play videos (local storage) |
+| **Phase 2** | Thumbnails, edit/delete, "Other Videos" sidebar |
+| **Phase 3** | Azure deployment — App Service, SQL Database, Blob Storage, CI/CD |
+| **Phase 4** | Google OAuth with role-based authorization (Admin vs User) |
 
 ---
 
@@ -270,11 +181,13 @@ MiniTube/
 
 | Decision | Rationale |
 |----------|-----------|
-| **Razor Pages over Minimal API** | Need server-rendered UI; Razor Pages map 1:1 to screens, common in enterprise shops |
-| **JSON file over SQLite** | Fastest path to working MVP; swap to EF Core later without changing the service interface |
-| **Singleton VideoService** | Single shared instance is fine for local dev; in production, swap to scoped + database |
-| **`lock` for JSON writes** | Simple thread safety for a singleton writing to a shared file |
-| **Static files for video serving** | Kestrel handles range requests and caching out of the box — no custom streaming code needed |
+| **Razor Pages over Minimal API** | Server-rendered UI maps 1:1 to screens; common in enterprise |
+| **Azure SQL over JSON file** | Persistent, scalable storage; demonstrates EF Core skills |
+| **Azure Blob Storage over local disk** | Files persist across deployments; scalable cloud storage |
+| **Google OAuth over custom auth** | Real-world SSO; simpler than building registration/login |
+| **Claims-based roles** | Lightweight authorization without a separate Users table |
+| **SAS tokens for blob access** | Secure, time-limited URLs without exposing storage keys |
+| **GitHub Actions CI/CD** | Industry-standard DevOps practice; auto-deploy on push |
 
 ---
 

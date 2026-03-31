@@ -19,10 +19,36 @@
                 </div>
 
                 <h2>@Model.Video.Title</h2>
-                <div class="d-flex gap-3 text-muted mb-3">
-                    <span class="badge bg-secondary">@Model.Video.Category</span>
-                    <small>Uploaded @Model.Video.UploadedAt.ToString("MMMM dd, yyyy")</small>
-                    <small>@FormatFileSize(Model.Video.FileSizeBytes)</small>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex gap-3 text-muted">
+                        <span class="badge bg-secondary">@Model.Video.Category</span>
+                        <small>Uploaded @Model.Video.UploadedAt.ToString("MMMM dd, yyyy")</small>
+                        <small>@FormatFileSize(Model.Video.FileSizeBytes)</small>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <form method="post" asp-page-handler="Like" style="display:inline">
+                                <input type="hidden" name="id" value="@Model.Video.Id" />
+                                <button type="submit"
+                                        class="btn btn-sm @(Model.UserVote == true ? "btn-success" : "btn-outline-success")">
+                                    &#128077; @Model.LikeCount
+                                </button>
+                            </form>
+                            <form method="post" asp-page-handler="Dislike" style="display:inline">
+                                <input type="hidden" name="id" value="@Model.Video.Id" />
+                                <button type="submit"
+                                        class="btn btn-sm @(Model.UserVote == false ? "btn-danger" : "btn-outline-danger")">
+                                    &#128078; @Model.DislikeCount
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span class="btn btn-sm btn-outline-success disabled">&#128077; @Model.LikeCount</span>
+                            <span class="btn btn-sm btn-outline-danger disabled">&#128078; @Model.DislikeCount</span>
+                        }
+                    </div>
                 </div>
 
                 @if (Model.CanEdit)

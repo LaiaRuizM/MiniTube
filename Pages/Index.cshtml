@@ -103,7 +103,21 @@
                             </p>
                         </div>
                         <div class="card-footer d-flex justify-content-between align-items-center">
-                            <small class="text-muted">@video.UploadedAt.ToString("MMM dd, yyyy")</small>
+                            <div>
+                                <small class="text-muted">@video.UploadedAt.ToString("MMM dd, yyyy")</small>
+                                @{
+                                    var hasLikes = Model.LikeCounts.TryGetValue(video.Id, out var counts);
+                                    var likes = hasLikes ? counts.Likes : 0;
+                                    var dislikes = hasLikes ? counts.Dislikes : 0;
+                                }
+                                @if (likes > 0 || dislikes > 0)
+                                {
+                                    <small class="ms-2">
+                                        <span class="text-success">&#128077;@likes</span>
+                                        <span class="text-danger ms-1">&#128078;@dislikes</span>
+                                    </small>
+                                }
+                            </div>
                             @{
                                 var userEmail = User.FindFirstValue(System.Security.Claims.ClaimTypes.Email);
                                 var canEdit = User.Identity?.IsAuthenticated == true &&

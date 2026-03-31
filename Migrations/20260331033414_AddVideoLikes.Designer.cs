@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MiniTube.Data;
 
@@ -11,9 +12,11 @@ using MiniTube.Data;
 namespace MiniTube.Migrations
 {
     [DbContext(typeof(MiniTubeDbContext))]
-    partial class MiniTubeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260331033414_AddVideoLikes")]
+    partial class AddVideoLikes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

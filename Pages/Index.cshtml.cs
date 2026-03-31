@@ -17,6 +17,7 @@ public class IndexModel : PageModel
 
     public List<VideoMetadata> Videos { get; set; } = new();
     public bool IsAdmin { get; set; }
+    public Dictionary<string, (int Likes, int Dislikes)> LikeCounts { get; set; } = new();
 
     [BindProperty(SupportsGet = true)]
     public string? Search { get; set; }
@@ -42,6 +43,7 @@ public class IndexModel : PageModel
 
         Videos = filtered.OrderByDescending(v => v.UploadedAt).ToList();
         IsAdmin = User.HasClaim("IsAdmin", "true");
+        LikeCounts = await _videoService.GetAllLikeCountsAsync();
     }
 
     public async Task<IActionResult> OnPostDeleteAsync(string id)

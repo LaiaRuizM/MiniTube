@@ -19,6 +19,9 @@ public class WatchModel : PageModel
     public string VideoUrl { get; set; } = string.Empty;
     public List<VideoMetadata> OtherVideos { get; set; } = new();
     public bool CanEdit { get; set; }
+    public int LikeCount { get; set; }
+    public int DislikeCount { get; set; }
+    public bool? UserVote { get; set; } // true=liked, false=disliked, null=no vote
 
     public async Task<IActionResult> OnGetAsync(string id)
     {
@@ -46,7 +49,33 @@ public class WatchModel : PageModel
                   (isAdmin || (Video.OwnerEmail != null &&
                    Video.OwnerEmail.Equals(email, StringComparison.OrdinalIgnoreCase)));
 
+        // Get like info
+        var likeInfo = await _videoService.GetLikeInfoAsync(id, email);
+        LikeCount = likeInfo.Likes;
+        DislikeCount = likeInfo.Dislikes;
+        UserVote = likeInfo.UserVote;
+
         return Page();
+    }
+
+    public async Task<IActionResult> OnPostLikeAsync(string id)
+    {
+        if (!(User.Identity?.IsAuthenticated ?? false))
+            return Challenge();
+
+        var email = User.FindFirstValue(ClaimTypes.Email)!;
+        await _videoService.ToggleLikeAsync(id, email, isLike: true);
+        return RedirectToPage(new { id });
+    }
+
+    public async Task<IActionResult> OnPostDislikeAsync(string id)
+    {
+        if (!(User.Identity?.IsAuthenticated ?? false))
+            return Challenge();
+
+        var email = User.FindFirstValue(ClaimTypes.Email)!;
+        await _videoService.ToggleLikeAsync(id, email, isLike: false);
+        return RedirectToPage(new { id });
     }
 
     public async Task<IActionResult> OnPostDeleteAsync(string id)

@@ -1,0 +1,103 @@
+@page
+@model MiniTube.Pages.ProfileModel
+@inject MiniTube.Services.VideoService VideoService
+@{
+    ViewData["Title"] = "My Profile";
+}
+
+<div class="container mt-4">
+    <!-- Profile Header -->
+    <div class="card mb-4">
+        <div class="card-body d-flex align-items-center gap-4">
+            <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white fw-bold"
+                 style="width: 64px; height: 64px; font-size: 1.5rem;">
+                @Model.UserName[0].ToString().ToUpper()
+            </div>
+            <div>
+                <h3 class="mb-1">
+                    @Model.UserName
+                    @if (Model.IsAdmin)
+                    {
+                        <span class="badge bg-warning text-dark ms-2">Admin</span>
+                    }
+                </h3>
+                <p class="text-muted mb-0">@Model.UserEmail</p>
+                <small class="text-muted">@Model.TotalVideos video@(Model.TotalVideos != 1 ? "s" : "") uploaded</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Videos -->
+    <h4 class="mb-3">
+        @if (Model.IsAdmin)
+        {
+            <span>All Videos</span>
+        }
+        else
+        {
+            <span>My Videos</span>
+        }
+    </h4>
+
+    @if (!Model.MyVideos.Any())
+    {
+        <div class="text-center py-5">
+            <h5 class="text-muted">You haven't uploaded any videos yet</h5>
+            <a href="/Upload" class="btn btn-outline-primary mt-2">Upload Your First Video</a>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @foreach (var video in Model.MyVideos)
+            {
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        @{
+                            var thumbSrc = !string.IsNullOrEmpty(video.ThumbnailFileName)
+                                ? VideoService.GetBlobSasUrl($"thumbnails/{video.ThumbnailFileName}")
+                                    ?? $"/videos/thumbnails/{video.ThumbnailFileName}"
+                                : null;
+                        }
+                        @if (thumbSrc != null)
+                        {
+                            <img src="@thumbSrc" class="card-img-top" alt="@video.Title"
+                                 style="height: 160px; object-fit: cover;" />
+                        }
+                        else
+                        {
+                            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
+                                 style="height: 160px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="white"
+                                     viewBox="0 0 16 16">
+                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                                    <path d="M6.271 5.055a.5.5 0 0 1 .52.038l3.5 2.5a.5.5 0 0 1 0 .814l-3.5 2.5A.5.5 0 0 1 6 10.5v-5a.5.5 0 0 1 .271-.445z"/>
+                                </svg>
+                            </div>
+                        }
+                        <div class="card-body">
+                            <h5 class="card-title">@video.Title</h5>
+                            <span class="badge bg-secondary mb-2">@video.Category</span>
+                            @if (video.OwnerName != null)
+                            {
+                                <small class="text-muted d-block">by @video.OwnerName</small>
+                            }
+                        </div>
+                        <div class="card-footer d-flex justify-content-between align-items-center">
+                            <small class="text-muted">@video.UploadedAt.ToString("MMM dd, yyyy")</small>
+                            <div class="d-flex gap-2">
+                                <a href="/Watch?id=@video.Id" class="btn btn-sm btn-outline-primary">Watch</a>
+                                <a href="/Edit?id=@video.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                <form method="post" asp-page-handler="Delete" style="display:inline">
+                                    <input type="hidden" name="id" value="@video.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            onclick="return confirm('Delete this video?')">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

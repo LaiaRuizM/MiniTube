@@ -15,18 +15,51 @@
         }
     </div>
 
+    <!-- Search and Filter -->
+    <form method="get" class="row g-2 mb-4">
+        <div class="col-md-6">
+            <input type="text" name="Search" value="@Model.Search" class="form-control"
+                   placeholder="Search by title or description..." />
+        </div>
+        <div class="col-md-3">
+            <select name="Category" class="form-select">
+                <option value="">All Categories</option>
+                @foreach (var cat in Model.Categories)
+                {
+                    <option value="@cat" selected="@(Model.Category == cat)">@cat</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-outline-primary flex-grow-1">Search</button>
+            @if (!string.IsNullOrEmpty(Model.Search) || !string.IsNullOrEmpty(Model.Category))
+            {
+                <a href="/" class="btn btn-outline-secondary">Clear</a>
+            }
+        </div>
+    </form>
+
     @if (!Model.Videos.Any())
     {
         <div class="text-center py-5">
-            <h4 class="text-muted">No videos yet</h4>
-            <p class="text-muted">Upload your first video to get started.</p>
-            @if (User.Identity?.IsAuthenticated == true)
+            @if (!string.IsNullOrEmpty(Model.Search) || !string.IsNullOrEmpty(Model.Category))
             {
-                <a href="/Upload" class="btn btn-outline-primary">Upload Video</a>
+                <h4 class="text-muted">No videos found</h4>
+                <p class="text-muted">Try a different search or category.</p>
+                <a href="/" class="btn btn-outline-secondary">Clear Filters</a>
             }
             else
             {
-                <a href="/Account/Login" class="btn btn-outline-primary">Sign in to Upload</a>
+                <h4 class="text-muted">No videos yet</h4>
+                <p class="text-muted">Upload your first video to get started.</p>
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <a href="/Upload" class="btn btn-outline-primary">Upload Video</a>
+                }
+                else
+                {
+                    <a href="/Account/Login" class="btn btn-outline-primary">Sign in to Upload</a>
+                }
             }
         </div>
     }

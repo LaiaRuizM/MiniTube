@@ -302,6 +302,40 @@ public class VideoService
                 g => (g.Count(l => l.IsLike), g.Count(l => !l.IsLike)));
     }
 
+    // --- Comments ---
+
+    public async Task<List<VideoComment>> GetCommentsAsync(string videoId)
+    {
+        return await _db.VideoComments
+            .Where(c => c.VideoId == videoId)
+            .OrderByDescending(c => c.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task AddCommentAsync(string videoId, string userEmail, string userName, string content)
+    {
+        _db.VideoComments.Add(new VideoComment
+        {
+            VideoId = videoId,
+            UserEmail = userEmail,
+            UserName = userName,
+            Content = content.Trim()
+        });
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task DeleteCommentAsync(int commentId, string? userEmail, bool isAdmin)
+    {
+        var comment = await _db.VideoComments.FindAsync(commentId);
+        if (comment == null) return;
+
+        if (!isAdmin && !comment.UserEmail.Equals(userEmail, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        _db.VideoComments.Remove(comment);
+        await _db.SaveChangesAsync();
+    }
+
     private static string GetContentType(string extension) => extension switch
     {
         ".mp4" => "video/mp4",

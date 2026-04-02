@@ -22,6 +22,10 @@ public class WatchModel : PageModel
     public int LikeCount { get; set; }
     public int DislikeCount { get; set; }
     public bool? UserVote { get; set; } // true=liked, false=disliked, null=no vote
+    public List<VideoComment> Comments { get; set; } = new();
+
+    [BindProperty]
+    public string? NewComment { get; set; }
 
     public async Task<IActionResult> OnGetAsync(string id)
     {
@@ -55,6 +59,8 @@ public class WatchModel : PageModel
         DislikeCount = likeInfo.Dislikes;
         UserVote = likeInfo.UserVote;
 
+        Comments = await _videoService.GetCommentsAsync(id);
+
         return Page();
     }
 
@@ -75,6 +81,31 @@ public class WatchModel : PageModel
 
         var email = User.FindFirstValue(ClaimTypes.Email)!;
         await _videoService.ToggleLikeAsync(id, email, isLike: false);
+        return RedirectToPage(new { id });
+    }
+
+    public async Task<IActionResult> OnPostCommentAsync(string id)
+    {
+        if (!(User.Identity?.IsAuthenticated ?? false))
+            return Challenge();
+
+        if (string.IsNullOrWhiteSpace(NewComment) || NewComment.Length > 1000)
+            return RedirectToPage(new { id });
+
+        var email = User.FindFirstValue(ClaimTypes.Email)!;
+        var name = User.Identity?.Name ?? email;
+        await _videoService.AddCommentAsync(id, email, name, NewComment);
+        return RedirectToPage(new { id });
+    }
+
+    public async Task<IActionResult> OnPostDeleteCommentAsync(int commentId, string id)
+    {
+        if (!(User.Identity?.IsAuthenticated ?? false))
+            return Challenge();
+
+        var email = User.FindFirstValue(ClaimTypes.Email);
+        var isAdmin = User.HasClaim("IsAdmin", "true");
+        await _videoService.DeleteCommentAsync(commentId, email, isAdmin);
         return RedirectToPage(new { id });
     }
 

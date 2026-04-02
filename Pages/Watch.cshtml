@@ -1,6 +1,7 @@
 @page
 @model MiniTube.Pages.WatchModel
 @inject MiniTube.Services.VideoService VideoService
+@using System.Security.Claims
 @{
     ViewData["Title"] = Model.Video?.Title ?? "Watch";
 }
@@ -78,6 +79,69 @@
                 }
 
                 <a href="/" class="btn btn-outline-secondary mt-3">Back to videos</a>
+
+                <!-- Comments Section -->
+                <div class="mt-4">
+                    <h5>Comments (@Model.Comments.Count)</h5>
+
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <form method="post" asp-page-handler="Comment" class="mb-4">
+                            <input type="hidden" name="id" value="@Model.Video.Id" />
+                            <div class="mb-2">
+                                <textarea name="NewComment" class="form-control" rows="2"
+                                          placeholder="Add a comment..." maxlength="1000" required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-primary">Post</button>
+                        </form>
+                    }
+                    else
+                    {
+                        <p class="text-muted"><a href="/Account/Login">Sign in</a> to leave a comment.</p>
+                    }
+
+                    @if (Model.Comments.Any())
+                    {
+                        <div class="d-flex flex-column gap-3">
+                            @foreach (var comment in Model.Comments)
+                            {
+                                <div class="d-flex gap-3">
+                                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center flex-shrink-0"
+                                         style="width:36px; height:36px; color:white; font-weight:600;">
+                                        @comment.UserName.Substring(0, 1).ToUpper()
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex align-items-center gap-2 mb-1">
+                                            <strong style="font-size:0.9rem;">@comment.UserName</strong>
+                                            <small class="text-muted">@comment.CreatedAt.ToString("MMM dd, yyyy")</small>
+                                            @{
+                                                var userEmail = User.FindFirstValue(System.Security.Claims.ClaimTypes.Email);
+                                                var canDeleteComment = User.Identity?.IsAuthenticated == true &&
+                                                    (User.HasClaim("IsAdmin", "true") ||
+                                                     comment.UserEmail.Equals(userEmail, StringComparison.OrdinalIgnoreCase));
+                                            }
+                                            @if (canDeleteComment)
+                                            {
+                                                <form method="post" asp-page-handler="DeleteComment" style="display:inline">
+                                                    <input type="hidden" name="commentId" value="@comment.Id" />
+                                                    <input type="hidden" name="id" value="@Model.Video.Id" />
+                                                    <button type="submit" class="btn btn-link btn-sm text-danger p-0"
+                                                            style="font-size:0.8rem;"
+                                                            onclick="return confirm('Delete comment?')">Delete</button>
+                                                </form>
+                                            }
+                                        </div>
+                                        <p class="mb-0" style="font-size:0.95rem;">@comment.Content</p>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No comments yet. Be the first!</p>
+                    }
+                </div>
             </div>
 
             <!-- Other Videos Sidebar -->

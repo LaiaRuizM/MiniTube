@@ -9,6 +9,7 @@ public class MiniTubeDbContext : DbContext
 
     public DbSet<VideoMetadata> Videos => Set<VideoMetadata>();
     public DbSet<VideoLike> VideoLikes => Set<VideoLike>();
+    public DbSet<VideoComment> VideoComments => Set<VideoComment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,6 +34,15 @@ public class MiniTubeDbContext : DbContext
             entity.Property(l => l.UserEmail).IsRequired().HasMaxLength(100);
             // One like/dislike per user per video
             entity.HasIndex(l => new { l.VideoId, l.UserEmail }).IsUnique();
+        });
+
+        modelBuilder.Entity<VideoComment>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.VideoId).IsRequired().HasMaxLength(100);
+            entity.Property(c => c.UserEmail).IsRequired().HasMaxLength(100);
+            entity.Property(c => c.UserName).IsRequired().HasMaxLength(200);
+            entity.Property(c => c.Content).IsRequired().HasMaxLength(1000);
         });
     }
 }

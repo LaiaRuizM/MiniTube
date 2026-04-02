@@ -1,16 +1,27 @@
+@inject MiniTube.Services.VideoService VideoService
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - MiniTube</title>
+    @{
+        var pageTitle = ViewData["Title"]?.ToString();
+        var fullTitle = string.IsNullOrEmpty(pageTitle) || pageTitle == "Home"
+            ? "MiniTube"
+            : $"{pageTitle} | MiniTube";
+    }
+    <title>@fullTitle</title>
+    <link rel="icon" type="image/png" href="~/favicon.png" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/MiniTube.styles.css" asp-append-version="true" />
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-dark bg-dark border-bottom mb-3">
+        @{
+            var currentPage = ViewContext.RouteData.Values["page"]?.ToString() ?? "";
+        }
+        <nav class="navbar navbar-expand-sm navbar-dark bg-dark mb-3">
             <div class="container">
                 <a class="navbar-brand fw-bold" asp-area="" asp-page="/Index">MiniTube</a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse"
@@ -20,23 +31,38 @@
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-page="/Index">Home</a>
+                            <a class="nav-link @(currentPage == "/Index" ? "active" : "")" asp-area="" asp-page="/Index">Home</a>
                         </li>
                         @if (User.Identity?.IsAuthenticated == true)
                         {
                             <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-page="/Upload">Upload</a>
+                                <a class="nav-link @(currentPage == "/Upload" ? "active" : "")" asp-area="" asp-page="/Upload">Upload</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-page="/Profile">My Videos</a>
+                                <a class="nav-link @(currentPage == "/Profile" ? "active" : "")" asp-area="" asp-page="/Profile">My Videos</a>
                             </li>
                         }
                     </ul>
                     <ul class="navbar-nav ms-auto">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
-                            <li class="nav-item">
-                                <span class="nav-link text-light">
+                            var navEmail = (User as System.Security.Claims.ClaimsPrincipal)?.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
+                            var navPicUrl = await VideoService.GetProfilePictureUrlAsync(navEmail);
+                            var navInitial = (User.Identity?.Name ?? "?")[0].ToString().ToUpper();
+                            <li class="nav-item d-flex align-items-center">
+                                <span class="nav-link text-light d-flex align-items-center gap-2">
+                                    @if (navPicUrl != null)
+                                    {
+                                        <img src="@navPicUrl" class="rounded-circle"
+                                             style="width:28px;height:28px;object-fit:cover;border:1px solid rgba(168,85,247,0.5);" />
+                                    }
+                                    else
+                                    {
+                                        <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white fw-bold"
+                                             style="width:28px;height:28px;font-size:0.75rem;flex-shrink:0;">
+                                            @navInitial
+                                        </div>
+                                    }
                                     @User.Identity.Name
                                     @if (User.HasClaim("IsAdmin", "true"))
                                     {
@@ -44,8 +70,8 @@
                                     }
                                 </span>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="/Account/Logout">Logout</a>
+                            <li class="nav-item d-flex align-items-center ms-2">
+                                <a href="/Account/Logout" class="btn btn-sm btn-logout">Logout</a>
                             </li>
                         }
                         else
@@ -60,19 +86,95 @@
         </nav>
     </header>
 
+    <!-- Flash message banner -->
+    @{
+        var successMsg = TempData["Success"]?.ToString();
+        var errorMsg = TempData["Error"]?.ToString();
+    }
+    @if (!string.IsNullOrEmpty(successMsg))
+    {
+        <div class="flash-banner alert alert-success alert-dismissible fade show shadow" role="alert">
+            @successMsg
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (!string.IsNullOrEmpty(errorMsg))
+    {
+        <div class="flash-banner alert alert-danger alert-dismissible fade show shadow" role="alert">
+            @errorMsg
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
     <div class="container">
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
     </div>
 
-    <footer class="border-top footer text-muted mt-5">
-        <div class="container py-3">
-            &copy; 2026 MiniTube &mdash; A minimal video platform
+    <footer class="border-top footer mt-5">
+        <div class="container py-3 d-flex justify-content-between align-items-center">
+            <span>&copy; 2026 MiniTube &mdash; A minimal video platform</span>
+            <a href="https://github.com/LaiaRuizM/MiniTube" target="_blank" rel="noopener">GitHub</a>
         </div>
     </footer>
 
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <canvas id="bokeh-canvas"></canvas>
+<script>
+(function() {
+  const canvas = document.getElementById('bokeh-canvas');
+  const ctx = canvas.getContext('2d');
+  const colors = ['rgba(168,85,247,', 'rgba(6,182,212,', 'rgba(168,85,247,', 'rgba(255,255,255,'];
+  const orbs = [];
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  function createOrb() {
+    return {
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 6 + 2,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      alpha: Math.random() * 0.5 + 0.1,
+      dx: (Math.random() - 0.5) * 0.3,
+      dy: (Math.random() - 0.5) * 0.3,
+      pulse: Math.random() * Math.PI * 2,
+      pulseSpeed: Math.random() * 0.01 + 0.005,
+    };
+  }
+
+  resize();
+  window.addEventListener('resize', resize);
+  for (let i = 0; i < 400; i++) orbs.push(createOrb());
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    orbs.forEach(o => {
+      o.pulse += o.pulseSpeed;
+      const alpha = o.alpha * (0.7 + 0.3 * Math.sin(o.pulse));
+      ctx.beginPath();
+      const grad = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r * 3);
+      grad.addColorStop(0, o.color + alpha + ')');
+      grad.addColorStop(1, o.color + '0)');
+      ctx.fillStyle = grad;
+      ctx.arc(o.x, o.y, o.r * 3, 0, Math.PI * 2);
+      ctx.fill();
+      o.x += o.dx;
+      o.y += o.dy;
+      if (o.x < -20) o.x = canvas.width + 20;
+      if (o.x > canvas.width + 20) o.x = -20;
+      if (o.y < -20) o.y = canvas.height + 20;
+      if (o.y > canvas.height + 20) o.y = -20;
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+</script>
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
 

@@ -22,29 +22,38 @@ public class ProfileModel : PageModel
     public string UserEmail { get; set; } = string.Empty;
     public bool IsAdmin { get; set; }
     public int TotalVideos { get; set; }
+    public string? ProfilePictureUrl { get; set; }
+
+    [BindProperty]
+    public IFormFile? PictureFile { get; set; }
 
     public async Task OnGetAsync()
     {
         UserName = User.Identity?.Name ?? "Unknown";
         UserEmail = User.FindFirstValue(ClaimTypes.Email) ?? "Unknown";
         IsAdmin = User.HasClaim("IsAdmin", "true");
+        ProfilePictureUrl = await _videoService.GetProfilePictureUrlAsync(UserEmail);
 
         var all = await _videoService.GetAllAsync();
 
-        if (IsAdmin)
-        {
-            MyVideos = all.OrderByDescending(v => v.UploadedAt).ToList();
-        }
-        else
-        {
-            MyVideos = all
-                .Where(v => v.OwnerEmail != null &&
+        MyVideos = IsAdmin
+            ? all.OrderByDescending(v => v.UploadedAt).ToList()
+            : all.Where(v => v.OwnerEmail != null &&
                        v.OwnerEmail.Equals(UserEmail, StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(v => v.UploadedAt)
-                .ToList();
-        }
+                 .OrderByDescending(v => v.UploadedAt).ToList();
 
         TotalVideos = MyVideos.Count;
+    }
+
+    public async Task<IActionResult> OnPostUploadPictureAsync()
+    {
+        var email = User.FindFirstValue(ClaimTypes.Email)!;
+        if (PictureFile != null && PictureFile.Length > 0)
+        {
+            await _videoService.SaveProfilePictureAsync(email, PictureFile);
+            TempData["Success"] = "Profile picture updated!";
+        }
+        return RedirectToPage();
     }
 
     public async Task<IActionResult> OnPostDeleteAsync(string id)
@@ -55,6 +64,7 @@ public class ProfileModel : PageModel
             return Forbid();
 
         await _videoService.DeleteVideoAsync(id);
+        TempData["Success"] = "Video deleted.";
         return RedirectToPage();
     }
 }

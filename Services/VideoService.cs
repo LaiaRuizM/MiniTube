@@ -302,6 +302,44 @@ public class VideoService
                 g => (g.Count(l => l.IsLike), g.Count(l => !l.IsLike)));
     }
 
+    // --- Profile Picture ---
+
+    public async Task<string?> GetProfilePictureUrlAsync(string userEmail)
+    {
+        var profile = await _db.UserProfiles.FindAsync(userEmail);
+        if (profile?.PictureFileName == null) return null;
+        return GetBlobSasUrl($"profiles/{profile.PictureFileName}")
+               ?? $"/profiles/{profile.PictureFileName}";
+    }
+
+    public async Task SaveProfilePictureAsync(string userEmail, IFormFile file)
+    {
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(extension))
+            throw new InvalidOperationException("Invalid image format.");
+
+        var fileName = $"{userEmail.Replace("@", "_").Replace(".", "_")}{extension}";
+
+        if (_blobContainer != null)
+        {
+            var blobClient = _blobContainer.GetBlobClient($"profiles/{fileName}");
+            using var stream = file.OpenReadStream();
+            await blobClient.UploadAsync(stream, overwrite: true);
+        }
+
+        var profile = await _db.UserProfiles.FindAsync(userEmail);
+        if (profile == null)
+        {
+            _db.UserProfiles.Add(new UserProfile { UserEmail = userEmail, PictureFileName = fileName });
+        }
+        else
+        {
+            profile.PictureFileName = fileName;
+        }
+        await _db.SaveChangesAsync();
+    }
+
     // --- Comments ---
 
     public async Task<List<VideoComment>> GetCommentsAsync(string videoId)

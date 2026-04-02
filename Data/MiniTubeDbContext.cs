@@ -10,6 +10,7 @@ public class MiniTubeDbContext : DbContext
     public DbSet<VideoMetadata> Videos => Set<VideoMetadata>();
     public DbSet<VideoLike> VideoLikes => Set<VideoLike>();
     public DbSet<VideoComment> VideoComments => Set<VideoComment>();
+    public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -43,6 +44,13 @@ public class MiniTubeDbContext : DbContext
             entity.Property(c => c.UserEmail).IsRequired().HasMaxLength(100);
             entity.Property(c => c.UserName).IsRequired().HasMaxLength(200);
             entity.Property(c => c.Content).IsRequired().HasMaxLength(1000);
+        });
+
+        modelBuilder.Entity<UserProfile>(entity =>
+        {
+            entity.HasKey(u => u.UserEmail);
+            entity.Property(u => u.UserEmail).IsRequired().HasMaxLength(100);
+            entity.Property(u => u.PictureFileName).HasMaxLength(260);
         });
     }
 }

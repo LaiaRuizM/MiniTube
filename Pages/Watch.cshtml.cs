@@ -95,6 +95,7 @@ public class WatchModel : PageModel
         var email = User.FindFirstValue(ClaimTypes.Email)!;
         var name = User.Identity?.Name ?? email;
         await _videoService.AddCommentAsync(id, email, name, NewComment);
+        TempData["Success"] = "Comment posted!";
         return RedirectToPage(new { id });
     }
 
@@ -106,6 +107,7 @@ public class WatchModel : PageModel
         var email = User.FindFirstValue(ClaimTypes.Email);
         var isAdmin = User.HasClaim("IsAdmin", "true");
         await _videoService.DeleteCommentAsync(commentId, email, isAdmin);
+        TempData["Success"] = "Comment deleted.";
         return RedirectToPage(new { id });
     }
 
@@ -120,6 +122,7 @@ public class WatchModel : PageModel
             return Forbid();
 
         await _videoService.DeleteVideoAsync(id);
+        TempData["Success"] = "Video deleted.";
         return RedirectToPage("/Index");
     }
 }

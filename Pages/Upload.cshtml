@@ -19,8 +19,13 @@
 
                 <div class="mb-3">
                     <label asp-for="Form.Description" class="form-label">Description</label>
-                    <textarea asp-for="Form.Description" class="form-control" rows="3" placeholder="Describe your video (optional)"></textarea>
-                    <span asp-validation-for="Form.Description" class="text-danger"></span>
+                    <textarea asp-for="Form.Description" id="descriptionField" class="form-control" rows="3"
+                              placeholder="Describe your video (optional)" maxlength="500"
+                              oninput="updateDesc(this)"></textarea>
+                    <div class="d-flex justify-content-between mt-1">
+                        <span asp-validation-for="Form.Description" class="text-danger"></span>
+                        <span id="charCounter" style="font-size:0.8rem; color:#a1a1aa;">0 / 500</span>
+                    </div>
                 </div>
 
                 <div class="mb-3">
@@ -38,7 +43,7 @@
                 <div class="mb-3">
                     <label asp-for="Form.VideoFile" class="form-label">Video File</label>
                     <input asp-for="Form.VideoFile" class="form-control" type="file" accept=".mp4,.webm,.mov" />
-                    <div class="form-text">Accepted formats: .mp4, .webm, .mov (max ~25 MB on Azure; 500 MB locally)</div>
+                    <div class="form-text">Accepted formats: .mp4, .webm, .mov &mdash; max ~25 MB on Azure</div>
                     <span asp-validation-for="Form.VideoFile" class="text-danger"></span>
                 </div>
 
@@ -51,4 +56,13 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        function updateDesc(el) {
+            const counter = document.getElementById('charCounter');
+            const len = el.value.length;
+            counter.textContent = len + ' / 500';
+            counter.style.color = len >= 450 ? '#f43f5e' : '#a1a1aa';
+            counter.style.fontWeight = len >= 450 ? '600' : 'normal';
+        }
+    </script>
 }

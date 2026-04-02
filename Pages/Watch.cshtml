@@ -139,7 +139,10 @@
                     }
                     else
                     {
-                        <p class="text-muted">No comments yet. Be the first!</p>
+                        <div class="empty-state py-4">
+                            <div class="empty-icon">&#128172;</div>
+                            <p class="mb-0">No comments yet. Be the first!</p>
+                        </div>
                     }
                 </div>
             </div>
@@ -190,15 +193,6 @@
     }
 </div>
 
-<style>
-    .hover-card {
-        transition: box-shadow 0.2s ease;
-    }
-
-    .hover-card:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
-</style>
 
 @functions {
     string FormatFileSize(long bytes)

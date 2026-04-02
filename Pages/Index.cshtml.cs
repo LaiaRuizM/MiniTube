@@ -57,6 +57,7 @@ public class IndexModel : PageModel
             return Forbid();
 
         await _videoService.DeleteVideoAsync(id);
+        TempData["Success"] = "Video deleted.";
         return RedirectToPage();
     }
 }

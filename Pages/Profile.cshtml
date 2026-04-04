@@ -116,7 +116,18 @@
                             }
                         </div>
                         <div class="card-footer d-flex justify-content-between align-items-center">
-                            <small class="text-muted">@video.UploadedAt.ToString("MMM dd, yyyy")</small>
+                            <div class="d-flex flex-column gap-1">
+                                <small class="text-muted">@video.UploadedAt.ToString("MMM dd, yyyy")</small>
+                                <small class="text-muted">
+                                    @{
+                                        var hasLikes = Model.LikeCounts.TryGetValue(video.Id, out var lc);
+                                        var commentCount = Model.CommentCounts.TryGetValue(video.Id, out var cc) ? cc : 0;
+                                    }
+                                    <span class="text-success me-2">&#128077; @(hasLikes ? lc.Likes : 0)</span>
+                                    <span class="text-danger me-2">&#128078; @(hasLikes ? lc.Dislikes : 0)</span>
+                                    <span>&#128172; @commentCount</span>
+                                </small>
+                            </div>
                             <div class="d-flex gap-2">
                                 <a href="/Watch?id=@video.Id" class="btn btn-sm btn-outline-primary">Watch</a>
                                 <a href="/Edit?id=@video.Id" class="btn btn-sm btn-outline-secondary">Edit</a>

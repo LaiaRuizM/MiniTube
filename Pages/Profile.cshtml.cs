@@ -23,6 +23,8 @@ public class ProfileModel : PageModel
     public bool IsAdmin { get; set; }
     public int TotalVideos { get; set; }
     public string? ProfilePictureUrl { get; set; }
+    public Dictionary<string, (int Likes, int Dislikes)> LikeCounts { get; set; } = new();
+    public Dictionary<string, int> CommentCounts { get; set; } = new();
 
     [BindProperty]
     public IFormFile? PictureFile { get; set; }
@@ -33,6 +35,8 @@ public class ProfileModel : PageModel
         UserEmail = User.FindFirstValue(ClaimTypes.Email) ?? "Unknown";
         IsAdmin = User.HasClaim("IsAdmin", "true");
         ProfilePictureUrl = await _videoService.GetProfilePictureUrlAsync(UserEmail);
+        LikeCounts = await _videoService.GetAllLikeCountsAsync();
+        CommentCounts = await _videoService.GetAllCommentCountsAsync();
 
         var all = await _videoService.GetAllAsync();
 

@@ -342,6 +342,13 @@ public class VideoService
 
     // --- Comments ---
 
+    public async Task<Dictionary<string, int>> GetAllCommentCountsAsync()
+    {
+        return await _db.VideoComments
+            .GroupBy(c => c.VideoId)
+            .ToDictionaryAsync(g => g.Key, g => g.Count());
+    }
+
     public async Task<List<VideoComment>> GetCommentsAsync(string videoId)
     {
         return await _db.VideoComments

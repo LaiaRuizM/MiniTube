@@ -62,6 +62,16 @@ public class VideoService
         return await _db.Videos.FindAsync(id);
     }
 
+    public async Task IncrementViewCountAsync(string id)
+    {
+        var video = await _db.Videos.FindAsync(id);
+        if (video != null)
+        {
+            video.ViewCount++;
+            await _db.SaveChangesAsync();
+        }
+    }
+
     public async Task<bool> CanUserEditAsync(string videoId, string? userEmail, bool isAdmin)
     {
         if (isAdmin) return true;

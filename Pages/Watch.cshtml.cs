@@ -40,6 +40,8 @@ public class WatchModel : PageModel
         VideoUrl = _videoService.GetBlobSasUrl(Video.FileName)
                    ?? $"/videos/{Video.FileName}";
 
+        await _videoService.IncrementViewCountAsync(id);
+
         var allVideos = await _videoService.GetAllAsync();
         OtherVideos = allVideos
             .Where(v => v.Id != id)

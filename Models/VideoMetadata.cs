@@ -39,4 +39,6 @@ public class VideoMetadata
 
     [MaxLength(200)]
     public string? OwnerName { get; set; }
+
+    public int ViewCount { get; set; } = 0;
 }

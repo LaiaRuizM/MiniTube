@@ -17,7 +17,7 @@ public class WatchModel : PageModel
 
     public VideoMetadata? Video { get; set; }
     public string VideoUrl { get; set; } = string.Empty;
-    public List<VideoMetadata> OtherVideos { get; set; } = new();
+    public List<VideoMetadata> RelatedVideos { get; set; } = new();
     public bool CanEdit { get; set; }
     public int LikeCount { get; set; }
     public int DislikeCount { get; set; }
@@ -42,11 +42,7 @@ public class WatchModel : PageModel
 
         await _videoService.IncrementViewCountAsync(id);
 
-        var allVideos = await _videoService.GetAllAsync();
-        OtherVideos = allVideos
-            .Where(v => v.Id != id)
-            .OrderByDescending(v => v.UploadedAt)
-            .ToList();
+        RelatedVideos = await _videoService.GetRelatedVideosAsync(id);
 
         // Check if current user can edit/delete this video
         var email = User.FindFirstValue(ClaimTypes.Email);

@@ -212,35 +212,46 @@ public class VideoService
                 await videoFile.OpenReadStream().CopyToAsync(tempStream);
             }
 
-            var psi = new System.Diagnostics.ProcessStartInfo
+            // Try to grab a frame at 2s, then 1s, then 0s as fallbacks
+            bool thumbGenerated = false;
+            foreach (var seekSeconds in new[] { 5, 2, 1, 0 })
             {
-                FileName = "ffmpeg",
-                Arguments = $"-y -ss 2 -i \"{tempVideoPath}\" -vframes 1 -q:v 2 -update 1 \"{tempThumbPath}\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
+                if (File.Exists(tempThumbPath)) File.Delete(tempThumbPath);
 
-            using var process = System.Diagnostics.Process.Start(psi);
-            if (process != null)
-            {
-                await process.WaitForExitAsync();
-                if (process.ExitCode == 0 && File.Exists(tempThumbPath))
+                var psi = new System.Diagnostics.ProcessStartInfo
                 {
-                    var thumbFileName = $"{metadata.Id}.jpg";
-                    metadata.ThumbnailFileName = thumbFileName;
+                    FileName = "ffmpeg",
+                    Arguments = $"-y -ss {seekSeconds} -i \"{tempVideoPath}\" -vframes 1 -q:v 2 -update 1 \"{tempThumbPath}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
 
-                    if (_blobContainer != null)
+                using var process = System.Diagnostics.Process.Start(psi);
+                if (process != null) await process.WaitForExitAsync();
+
+                if (File.Exists(tempThumbPath) && new FileInfo(tempThumbPath).Length > 0)
+                {
+                    thumbGenerated = true;
+                    break;
+                }
+            }
+
+            if (thumbGenerated)
+            {
+                var thumbFileName = $"{metadata.Id}.jpg";
+                metadata.ThumbnailFileName = thumbFileName;
+
+                if (_blobContainer != null)
+                {
+                    var thumbBlobClient = _blobContainer.GetBlobClient($"thumbnails/{thumbFileName}");
+                    using var thumbStream = File.OpenRead(tempThumbPath);
+                    await thumbBlobClient.UploadAsync(thumbStream, new BlobHttpHeaders
                     {
-                        var thumbBlobClient = _blobContainer.GetBlobClient($"thumbnails/{thumbFileName}");
-                        using var thumbStream = File.OpenRead(tempThumbPath);
-                        await thumbBlobClient.UploadAsync(thumbStream, new BlobHttpHeaders
-                        {
-                            ContentType = "image/jpeg"
-                        });
-                        metadata.ThumbnailBlobUrl = thumbBlobClient.Uri.ToString();
-                    }
+                        ContentType = "image/jpeg"
+                    });
+                    metadata.ThumbnailBlobUrl = thumbBlobClient.Uri.ToString();
                 }
             }
 
@@ -389,6 +400,68 @@ public class VideoService
 
         _db.VideoComments.Remove(comment);
         await _db.SaveChangesAsync();
+    }
+
+    // --- Related Videos ---
+
+    // OPTION A: keyword-based scoring (currently active — no external API needed)
+    // Score breakdown:
+    //   +10  same category
+    //   +2   per shared word in title
+    //   +1   per shared word in description
+    // Ties are broken by most recent upload date.
+    //
+    // OPTION B upgrade path (future):
+    //   1. Add an EmbeddingVector column (string, JSON) to VideoMetadata
+    //   2. On upload, call OpenAI text-embedding-3-small with title + description
+    //   3. Store the resulting float[] as JSON in that column
+    //   4. Replace the scoring logic below with cosine similarity between the
+    //      current video's vector and every other video's vector
+    //   5. Remove Tokenize / StopWords — they will no longer be needed
+    public async Task<List<VideoMetadata>> GetRelatedVideosAsync(string videoId, int count = 5)
+    {
+        var current = await _db.Videos.FindAsync(videoId);
+        if (current == null) return new List<VideoMetadata>();
+
+        var allOthers = await _db.Videos
+            .Where(v => v.Id != videoId)
+            .ToListAsync();
+
+        var currentWords = Tokenize(current.Title + " " + current.Description);
+
+        return allOthers
+            .Select(v =>
+            {
+                var score = 0;
+                if (v.Category == current.Category) score += 10;
+                score += Tokenize(v.Title).Intersect(currentWords).Count() * 2;
+                score += Tokenize(v.Description).Intersect(currentWords).Count();
+                return (Video: v, Score: score);
+            })
+            .OrderByDescending(x => x.Score)
+            .ThenByDescending(x => x.Video.UploadedAt)
+            .Take(count)
+            .Select(x => x.Video)
+            .ToList();
+    }
+
+    private static readonly HashSet<string> StopWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
+        "of", "with", "by", "from", "is", "are", "was", "were", "be", "been",
+        "have", "has", "had", "do", "does", "did", "will", "would", "could",
+        "should", "may", "might", "this", "that", "its", "our", "your"
+    };
+
+    private static HashSet<string> Tokenize(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return new HashSet<string>();
+        return text
+            .Split(new[] { ' ', ',', '.', '!', '?', '-', '_', ':', ';', '(', ')', '\n', '\r', '\t' },
+                   StringSplitOptions.RemoveEmptyEntries)
+            .Select(w => w.ToLowerInvariant())
+            .Where(w => w.Length > 2 && !StopWords.Contains(w))
+            .ToHashSet();
     }
 
     private static string GetContentType(string extension) => extension switch

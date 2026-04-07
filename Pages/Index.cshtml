@@ -6,7 +6,7 @@
     ViewData["Title"] = "Home";
 }
 
-<div class="container mt-4">
+<div class="container mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Videos</h1>
         @if (User.Identity?.IsAuthenticated == true)
@@ -104,8 +104,8 @@
                                 }
                             </p>
                         </div>
-                        <div class="card-footer d-flex justify-content-between align-items-center">
-                            <div>
+                        <div class="card-footer d-flex flex-column gap-2">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
                                 <small class="text-muted">@video.UploadedAt.ToString("MMM dd, yyyy")</small>
                                 @{
                                     var hasLikes = Model.LikeCounts.TryGetValue(video.Id, out var counts);
@@ -114,14 +114,12 @@
                                 }
                                 @if (likes > 0 || dislikes > 0)
                                 {
-                                    <small class="ms-2">
-                                        <span class="text-success">&#128077;@likes</span>
-                                        <span class="text-danger ms-1">&#128078;@dislikes</span>
-                                    </small>
+                                    <small><span class="text-success">&#128077;@likes</span></small>
+                                    <small><span class="text-danger">&#128078;@dislikes</span></small>
                                 }
                                 @if (video.ViewCount > 0)
                                 {
-                                    <small class="ms-2 text-muted">&#128065; @video.ViewCount</small>
+                                    <small class="text-muted">&#128065; @video.ViewCount</small>
                                 }
                             </div>
                             @{
@@ -152,7 +150,7 @@
     <!-- Pagination -->
     @if (Model.TotalPages > 1)
     {
-        <nav class="d-flex justify-content-center align-items-center gap-2 mt-4">
+        <nav class="d-flex justify-content-center align-items-center gap-2 mt-4 mb-4">
             @if (Model.CurrentPage > 1)
             {
                 <a href="?Search=@Model.Search&Category=@Model.Category&CurrentPage=@(Model.CurrentPage - 1)"

@@ -6,7 +6,7 @@
     ViewData["Title"] = Model.Video?.Title ?? "Watch";
 }
 
-<div class="container mt-4">
+<div class="container mt-4 mb-5 pb-4">
     @if (Model.Video != null)
     {
         <div class="row g-4">
@@ -150,16 +150,16 @@
 
             <!-- Other Videos Sidebar -->
             <div class="col-lg-4">
-                <div class="sticky-top" style="top: 1rem;">
-                    <h5 class="mb-3">Other Videos</h5>
+                <div>
+                    <h5 class="mb-3">Related Videos</h5>
 
-                    @if (Model.OtherVideos.Any())
+                    @if (Model.RelatedVideos.Any())
                     {
                         <div class="d-flex flex-column gap-3">
-                            @foreach (var video in Model.OtherVideos)
+                            @foreach (var video in Model.RelatedVideos)
                             {
                                 <a href="/Watch?id=@video.Id" class="card text-decoration-none text-reset hover-card">
-                                    <div style="position: relative; aspect-ratio: 16/9; background: #f0f0f0; overflow: hidden;">
+                                    <div style="position: relative; aspect-ratio: 16/9; overflow: hidden;">
                                         @if (!string.IsNullOrEmpty(video.ThumbnailFileName))
                                         {
                                             var sidebarThumbSrc = VideoService.GetBlobSasUrl($"thumbnails/{video.ThumbnailFileName}")
@@ -170,8 +170,11 @@
                                         }
                                         else
                                         {
-                                            <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #999;">
-                                                No Thumbnail
+                                            <div class="bg-secondary d-flex align-items-center justify-content-center w-100 h-100">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="white" viewBox="0 0 16 16">
+                                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                                                    <path d="M6.271 5.055a.5.5 0 0 1 .52.038l3.5 2.5a.5.5 0 0 1 0 .814l-3.5 2.5A.5.5 0 0 1 6 10.5v-5a.5.5 0 0 1 .271-.445z"/>
+                                                </svg>
                                             </div>
                                         }
                                     </div>
@@ -186,7 +189,7 @@
                     }
                     else
                     {
-                        <p class="text-muted">No other videos available</p>
+                        <p class="text-muted">No related videos available</p>
                     }
                 </div>
             </div>

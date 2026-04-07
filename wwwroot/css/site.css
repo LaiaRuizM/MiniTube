@@ -35,7 +35,7 @@ body::after {
   filter: blur(120px);
   opacity: 0.18;
   pointer-events: none;
-  z-index: 0;
+  z-index: -1;
 }
 
 /* Purple — top-right */
@@ -61,13 +61,12 @@ body::after {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 0;
+  z-index: -1;
   opacity: 0.45;
 }
 
 .container {
   position: relative;
-  z-index: 1;
 }
 
 header { position: relative; z-index: 10; }
@@ -276,8 +275,6 @@ hr { border-color: var(--border); }
   border-top: 1px solid var(--border) !important;
   color: var(--muted);
   font-size: 0.85rem;
-  position: relative;
-  z-index: 1;
 }
 
 .footer a,

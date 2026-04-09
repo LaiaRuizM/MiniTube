@@ -4,6 +4,7 @@
 
 Upload, browse, and play videos with Google OAuth authentication, Azure SQL Database, and Azure Blob Storage.
 
+[![CI](https://github.com/LaiaRuizM/MiniTube/actions/workflows/azure-deploy.yml/badge.svg)](https://github.com/LaiaRuizM/MiniTube/actions/workflows/azure-deploy.yml)
 ![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat&logo=dotnet)
 ![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-Razor%20Pages-512BD4?style=flat)
 ![Azure](https://img.shields.io/badge/Azure-App%20Service-0078D4?style=flat&logo=microsoftazure)

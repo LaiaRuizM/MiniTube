@@ -11,6 +11,11 @@ updates:
     labels:
       - "dependencies"
       - "nuget"
+    ignore:
+      # Stay on EF Core 8.x while the app targets .NET 8.
+      # EF Core 9 requires .NET 9 and would break the build at runtime.
+      - dependency-name: "Microsoft.EntityFrameworkCore.*"
+        update-types: ["version-update:semver-major"]
 
   # Keep GitHub Actions versions up to date
   - package-ecosystem: "github-actions"

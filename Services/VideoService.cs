@@ -316,9 +316,10 @@ public class VideoService
 
     public async Task<Dictionary<string, (int Likes, int Dislikes)>> GetAllLikeCountsAsync()
     {
-        return await _db.VideoLikes
+        var likes = await _db.VideoLikes.ToListAsync();
+        return likes
             .GroupBy(l => l.VideoId)
-            .ToDictionaryAsync(
+            .ToDictionary(
                 g => g.Key,
                 g => (g.Count(l => l.IsLike), g.Count(l => !l.IsLike)));
     }

@@ -46,25 +46,34 @@ builder.Services.AddTransient<IClaimsTransformation, AdminClaimsTransformation>(
 var app = builder.Build();
 
 // Auto-apply pending migrations on startup (with retry for Azure free tier auto-pause)
+// Skip when using InMemory provider (e.g. during integration tests)
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<MiniTubeDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
-    for (int attempt = 1; attempt <= 10; attempt++)
+    if (db.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory")
     {
-        try
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+        for (int attempt = 1; attempt <= 10; attempt++)
         {
-            logger.LogInformation("Applying migrations (attempt {Attempt}/10)...", attempt);
-            db.Database.Migrate();
-            logger.LogInformation("Migrations applied successfully.");
-            break;
+            try
+            {
+                logger.LogInformation("Applying migrations (attempt {Attempt}/10)...", attempt);
+                db.Database.Migrate();
+                logger.LogInformation("Migrations applied successfully.");
+                break;
+            }
+            catch (Exception ex) when (attempt < 10)
+            {
+                logger.LogWarning("Database not ready (attempt {Attempt}/10): {Message}. Retrying in 10s...", attempt, ex.Message);
+                Thread.Sleep(10_000);
+            }
         }
-        catch (Exception ex) when (attempt < 10)
-        {
-            logger.LogWarning("Database not ready (attempt {Attempt}/10): {Message}. Retrying in 10s...", attempt, ex.Message);
-            Thread.Sleep(10_000);
-        }
+    }
+    else
+    {
+        db.Database.EnsureCreated();
     }
 }
 
@@ -81,3 +90,6 @@ app.UseAuthorization();
 app.MapRazorPages();
 
 app.Run();
+
+// Make the auto-generated Program class accessible to the test project
+public partial class Program { }

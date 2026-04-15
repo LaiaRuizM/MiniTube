@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MiniTube.Data;
 
@@ -16,6 +17,19 @@ public class MiniTubeWebFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Inject fake Google OAuth credentials so the app's AddGoogle(...)
+        // registration passes option validation. In real environments these
+        // come from appsettings.Development.json (gitignored), so CI would
+        // otherwise fail at startup with "ClientId option must be provided".
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Google:ClientId"] = "test-client-id",
+                ["Google:ClientSecret"] = "test-client-secret",
+            });
+        });
+
         builder.ConfigureServices(services =>
         {
             // ── Replace Azure SQL with EF Core InMemory ─────────────────

@@ -1,9 +1,15 @@
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using MiniTube.Data;
 using MiniTube.Models;
+using MiniTube.Pages;
 using MiniTube.Services;
 
 namespace MiniTube.Tests;
@@ -32,14 +38,17 @@ public class VideoServiceTests
         return (new VideoService(db, config, logger), db);
     }
 
-    private static VideoMetadata MakeVideo(string title, string category, string description = "")
+    private static VideoMetadata MakeVideo(
+        string title, string category, string description = "",
+        string? ownerEmail = null)
         => new()
         {
             Title = title,
             Category = category,
             Description = description,
             FileName = $"{Guid.NewGuid()}.mp4",
-            UploadedAt = DateTime.UtcNow
+            UploadedAt = DateTime.UtcNow,
+            OwnerEmail = ownerEmail
         };
 
     // ─── Tests ──────────────────────────────────────────────────────────────
@@ -116,4 +125,205 @@ public class VideoServiceTests
         related[0].Id.Should().Be(highMatch.Id);
         related[1].Id.Should().Be(lowMatch.Id);
     }
+
+    // ─── CanUserEditAsync ──────────────────────────────────────────────────
+
+    [Fact]
+    public async Task CanUserEditAsync_AdminCanEditAnyVideo()
+    {
+        var (service, db) = BuildService();
+        var video = MakeVideo("Someone's video", "Tech", ownerEmail: "owner@example.com");
+        db.Videos.Add(video);
+        await db.SaveChangesAsync();
+
+        var result = await service.CanUserEditAsync(video.Id, "admin@example.com", isAdmin: true);
+
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanUserEditAsync_OwnerCanEditOwnVideo()
+    {
+        var (service, db) = BuildService();
+        var video = MakeVideo("My video", "Tech", ownerEmail: "owner@example.com");
+        db.Videos.Add(video);
+        await db.SaveChangesAsync();
+
+        var result = await service.CanUserEditAsync(video.Id, "owner@example.com", isAdmin: false);
+
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanUserEditAsync_StrangerCannotEditOthersVideo()
+    {
+        var (service, db) = BuildService();
+        var video = MakeVideo("Not yours", "Tech", ownerEmail: "owner@example.com");
+        db.Videos.Add(video);
+        await db.SaveChangesAsync();
+
+        var result = await service.CanUserEditAsync(video.Id, "stranger@example.com", isAdmin: false);
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CanUserEditAsync_AnonymousUserCannotEdit()
+    {
+        var (service, db) = BuildService();
+        var video = MakeVideo("Any video", "Tech", ownerEmail: "owner@example.com");
+        db.Videos.Add(video);
+        await db.SaveChangesAsync();
+
+        var result = await service.CanUserEditAsync(video.Id, null, isAdmin: false);
+
+        result.Should().BeFalse();
+    }
+
+    // ─── ToggleLikeAsync ───────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ToggleLikeAsync_FirstLikeIsRecorded()
+    {
+        var (service, db) = BuildService();
+        var video = MakeVideo("Cool video", "Tech");
+        db.Videos.Add(video);
+        await db.SaveChangesAsync();
+
+        await service.ToggleLikeAsync(video.Id, "user@example.com", isLike: true);
+
+        var info = await service.GetLikeInfoAsync(video.Id, "user@example.com");
+        info.Likes.Should().Be(1);
+        info.Dislikes.Should().Be(0);
+        info.UserVote.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ToggleLikeAsync_LikeThenDislikeSwitchesVote()
+    {
+        var (service, db) = BuildService();
+        var video = MakeVideo("Cool video", "Tech");
+        db.Videos.Add(video);
+        await db.SaveChangesAsync();
+
+        await service.ToggleLikeAsync(video.Id, "user@example.com", isLike: true);
+        await service.ToggleLikeAsync(video.Id, "user@example.com", isLike: false);
+
+        var info = await service.GetLikeInfoAsync(video.Id, "user@example.com");
+        info.Likes.Should().Be(0);
+        info.Dislikes.Should().Be(1);
+        info.UserVote.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ToggleLikeAsync_DoubleLikeRemovesVote()
+    {
+        var (service, db) = BuildService();
+        var video = MakeVideo("Cool video", "Tech");
+        db.Videos.Add(video);
+        await db.SaveChangesAsync();
+
+        await service.ToggleLikeAsync(video.Id, "user@example.com", isLike: true);
+        await service.ToggleLikeAsync(video.Id, "user@example.com", isLike: true);
+
+        var info = await service.GetLikeInfoAsync(video.Id, "user@example.com");
+        info.Likes.Should().Be(0);
+        info.Dislikes.Should().Be(0);
+        info.UserVote.Should().BeNull();
+    }
+
+    // ─── SaveVideoAsync — file extension validation ────────────────────────
+
+    [Fact]
+    public async Task SaveVideoAsync_RejectsExeFile()
+    {
+        var (service, _) = BuildService();
+        var form = new UploadForm
+        {
+            Title = "Malware",
+            Category = "Tech",
+            VideoFile = new FormFileFake("malware.exe", 1024)
+        };
+
+        var act = () => service.SaveVideoAsync(form, "user@example.com", "User");
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*not allowed*");
+    }
+
+    // ─── Upload page — oversized file validation ───────────────────────────
+
+    [Fact]
+    public async Task UploadPage_RejectsOversizedFile()
+    {
+        var (service, _) = BuildService();
+        var pageModel = new UploadModel(service);
+
+        // Set up minimal PageContext so ModelState works
+        pageModel.PageContext = new PageContext
+        {
+            ActionDescriptor = new CompiledPageActionDescriptor(),
+            HttpContext = new DefaultHttpContext(),
+            RouteData = new RouteData()
+        };
+
+        // File reports 501MB but only has 1KB of real data
+        var oversizedFile = new FormFileFake("big-video.mp4", 1024,
+            reportedLength: 501L * 1024 * 1024);
+
+        pageModel.Form = new UploadForm
+        {
+            Title = "Big Video",
+            Category = "Tech",
+            VideoFile = oversizedFile
+        };
+
+        var result = await pageModel.OnPostAsync();
+
+        // Should re-render the page (not redirect to /Index)
+        result.Should().BeOfType<PageResult>();
+        pageModel.ModelState.IsValid.Should().BeFalse();
+        pageModel.ModelState["Form.VideoFile"]!.Errors
+            .Should().Contain(e => e.ErrorMessage.Contains("500 MB"));
+    }
+
+    // ─── GetBlobSasUrl — when no Blob Storage configured ───────────────────
+
+    [Fact]
+    public void GetBlobSasUrl_ReturnsNull_WhenBlobStorageNotConfigured()
+    {
+        var (service, _) = BuildService();
+
+        var result = service.GetBlobSasUrl("any-file.mp4");
+
+        result.Should().BeNull();
+    }
+}
+
+/// <summary>
+/// Minimal IFormFile implementation for testing upload validation
+/// without needing a real file or HTTP request.
+/// </summary>
+internal class FormFileFake : IFormFile
+{
+    private readonly byte[] _content;
+    private readonly long _reportedLength;
+    public string FileName { get; }
+    public string ContentType => "application/octet-stream";
+    public long Length => _reportedLength;
+    public string Name => "file";
+    public string ContentDisposition => $"form-data; name=\"file\"; filename=\"{FileName}\"";
+    public IHeaderDictionary Headers => new HeaderDictionary();
+
+    public FormFileFake(string fileName, int sizeBytes, long? reportedLength = null)
+    {
+        FileName = fileName;
+        _content = new byte[sizeBytes];
+        _reportedLength = reportedLength ?? sizeBytes;
+    }
+
+    public Stream OpenReadStream() => new MemoryStream(_content);
+    public void CopyTo(Stream target) => OpenReadStream().CopyTo(target);
+    public Task CopyToAsync(Stream target, CancellationToken ct = default)
+        => OpenReadStream().CopyToAsync(target, ct);
 }

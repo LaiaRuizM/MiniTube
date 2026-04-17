@@ -10,11 +10,15 @@ namespace MiniTube.Pages;
 [Authorize]
 public class ProfileModel : PageModel
 {
-    private readonly VideoService _videoService;
+    private readonly IVideoService _videoService;
+    private readonly ILikeService _likeService;
+    private readonly ICommentService _commentService;
 
-    public ProfileModel(VideoService videoService)
+    public ProfileModel(IVideoService videoService, ILikeService likeService, ICommentService commentService)
     {
         _videoService = videoService;
+        _likeService = likeService;
+        _commentService = commentService;
     }
 
     public List<VideoMetadata> MyVideos { get; set; } = new();
@@ -35,8 +39,8 @@ public class ProfileModel : PageModel
         UserEmail = User.FindFirstValue(ClaimTypes.Email) ?? "Unknown";
         IsAdmin = User.HasClaim("IsAdmin", "true");
         ProfilePictureUrl = await _videoService.GetProfilePictureUrlAsync(UserEmail);
-        LikeCounts = await _videoService.GetAllLikeCountsAsync();
-        CommentCounts = await _videoService.GetAllCommentCountsAsync();
+        LikeCounts = await _likeService.GetAllLikeCountsAsync();
+        CommentCounts = await _commentService.GetAllCommentCountsAsync();
 
         var all = await _videoService.GetAllAsync();
 

@@ -10,10 +10,10 @@ namespace MiniTube.Pages;
 [Authorize]
 public class EditModel : PageModel
 {
-    private readonly VideoService _videoService;
+    private readonly IVideoService _videoService;
     private const long MaxFileSize = 500 * 1024 * 1024;
 
-    public EditModel(VideoService videoService)
+    public EditModel(IVideoService videoService)
     {
         _videoService = videoService;
     }

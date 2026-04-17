@@ -12,10 +12,10 @@ namespace MiniTube.Pages;
 [RequestFormLimits(MultipartBodyLengthLimit = 500 * 1024 * 1024)]
 public class UploadModel : PageModel
 {
-    private readonly VideoService _videoService;
+    private readonly IVideoService _videoService;
     private const long MaxFileSize = 500 * 1024 * 1024;
 
-    public UploadModel(VideoService videoService)
+    public UploadModel(IVideoService videoService)
     {
         _videoService = videoService;
     }

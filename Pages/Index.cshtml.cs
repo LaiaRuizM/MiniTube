@@ -8,11 +8,13 @@ namespace MiniTube.Pages;
 
 public class IndexModel : PageModel
 {
-    private readonly VideoService _videoService;
+    private readonly IVideoService _videoService;
+    private readonly ILikeService _likeService;
 
-    public IndexModel(VideoService videoService)
+    public IndexModel(IVideoService videoService, ILikeService likeService)
     {
         _videoService = videoService;
+        _likeService = likeService;
     }
 
     public List<VideoMetadata> Videos { get; set; } = new();
@@ -54,7 +56,7 @@ public class IndexModel : PageModel
         Videos = ordered.Skip((CurrentPage - 1) * PageSize).Take(PageSize).ToList();
 
         IsAdmin = User.HasClaim("IsAdmin", "true");
-        LikeCounts = await _videoService.GetAllLikeCountsAsync();
+        LikeCounts = await _likeService.GetAllLikeCountsAsync();
     }
 
     public async Task<IActionResult> OnPostDeleteAsync(string id)

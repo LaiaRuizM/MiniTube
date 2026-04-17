@@ -25,7 +25,7 @@ public class VideoServiceTests
     // VideoService needs IConfiguration and ILogger<VideoService> too. The
     // related-videos logic doesn't read from either, so we pass an empty
     // configuration and a NullLogger (a built-in no-op logger).
-    private static (VideoService Service, MiniTubeDbContext Db) BuildService()
+    private static (VideoService Service, LikeService LikeService, MiniTubeDbContext Db) BuildService()
     {
         var options = new DbContextOptionsBuilder<MiniTubeDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
@@ -35,7 +35,7 @@ public class VideoServiceTests
         var config = new ConfigurationBuilder().Build();
         var logger = NullLogger<VideoService>.Instance;
 
-        return (new VideoService(db, config, logger), db);
+        return (new VideoService(db, config, logger), new LikeService(db), db);
     }
 
     private static VideoMetadata MakeVideo(
@@ -58,7 +58,7 @@ public class VideoServiceTests
     {
         // Arrange — create a fresh DB with a target video and 3 candidates,
         // only one of which shares the target's category ("Music").
-        var (service, db) = BuildService();
+        var (service, likeService, db) = BuildService();
 
         var target = MakeVideo("Target song", "Music");
         var sameCategory = MakeVideo("Another song", "Music");
@@ -80,7 +80,7 @@ public class VideoServiceTests
     public async Task GetRelatedVideosAsync_ExcludesCurrentVideo()
     {
         // Arrange — create a target plus two unrelated videos
-        var (service, db) = BuildService();
+        var (service, likeService, db) = BuildService();
 
         var target = MakeVideo("My video", "Tech");
         var other1 = MakeVideo("Some other video", "Tech");
@@ -101,7 +101,7 @@ public class VideoServiceTests
     {
         // Arrange — all candidates share the same category, so the only
         // tiebreaker is shared keywords in the title/description.
-        var (service, db) = BuildService();
+        var (service, likeService, db) = BuildService();
 
         var target = MakeVideo("Learn ASP.NET Razor Pages", "Tech",
                                "A tutorial about Razor Pages and Entity Framework");
@@ -131,7 +131,7 @@ public class VideoServiceTests
     [Fact]
     public async Task CanUserEditAsync_AdminCanEditAnyVideo()
     {
-        var (service, db) = BuildService();
+        var (service, likeService, db) = BuildService();
         var video = MakeVideo("Someone's video", "Tech", ownerEmail: "owner@example.com");
         db.Videos.Add(video);
         await db.SaveChangesAsync();
@@ -144,7 +144,7 @@ public class VideoServiceTests
     [Fact]
     public async Task CanUserEditAsync_OwnerCanEditOwnVideo()
     {
-        var (service, db) = BuildService();
+        var (service, likeService, db) = BuildService();
         var video = MakeVideo("My video", "Tech", ownerEmail: "owner@example.com");
         db.Videos.Add(video);
         await db.SaveChangesAsync();
@@ -157,7 +157,7 @@ public class VideoServiceTests
     [Fact]
     public async Task CanUserEditAsync_StrangerCannotEditOthersVideo()
     {
-        var (service, db) = BuildService();
+        var (service, likeService, db) = BuildService();
         var video = MakeVideo("Not yours", "Tech", ownerEmail: "owner@example.com");
         db.Videos.Add(video);
         await db.SaveChangesAsync();
@@ -170,7 +170,7 @@ public class VideoServiceTests
     [Fact]
     public async Task CanUserEditAsync_AnonymousUserCannotEdit()
     {
-        var (service, db) = BuildService();
+        var (service, likeService, db) = BuildService();
         var video = MakeVideo("Any video", "Tech", ownerEmail: "owner@example.com");
         db.Videos.Add(video);
         await db.SaveChangesAsync();
@@ -185,14 +185,14 @@ public class VideoServiceTests
     [Fact]
     public async Task ToggleLikeAsync_FirstLikeIsRecorded()
     {
-        var (service, db) = BuildService();
+        var (service, likeService, db) = BuildService();
         var video = MakeVideo("Cool video", "Tech");
         db.Videos.Add(video);
         await db.SaveChangesAsync();
 
-        await service.ToggleLikeAsync(video.Id, "user@example.com", isLike: true);
+        await likeService.ToggleLikeAsync(video.Id, "user@example.com", isLike: true);
 
-        var info = await service.GetLikeInfoAsync(video.Id, "user@example.com");
+        var info = await likeService.GetLikeInfoAsync(video.Id, "user@example.com");
         info.Likes.Should().Be(1);
         info.Dislikes.Should().Be(0);
         info.UserVote.Should().BeTrue();
@@ -201,15 +201,15 @@ public class VideoServiceTests
     [Fact]
     public async Task ToggleLikeAsync_LikeThenDislikeSwitchesVote()
     {
-        var (service, db) = BuildService();
+        var (service, likeService, db) = BuildService();
         var video = MakeVideo("Cool video", "Tech");
         db.Videos.Add(video);
         await db.SaveChangesAsync();
 
-        await service.ToggleLikeAsync(video.Id, "user@example.com", isLike: true);
-        await service.ToggleLikeAsync(video.Id, "user@example.com", isLike: false);
+        await likeService.ToggleLikeAsync(video.Id, "user@example.com", isLike: true);
+        await likeService.ToggleLikeAsync(video.Id, "user@example.com", isLike: false);
 
-        var info = await service.GetLikeInfoAsync(video.Id, "user@example.com");
+        var info = await likeService.GetLikeInfoAsync(video.Id, "user@example.com");
         info.Likes.Should().Be(0);
         info.Dislikes.Should().Be(1);
         info.UserVote.Should().BeFalse();
@@ -218,15 +218,15 @@ public class VideoServiceTests
     [Fact]
     public async Task ToggleLikeAsync_DoubleLikeRemovesVote()
     {
-        var (service, db) = BuildService();
+        var (service, likeService, db) = BuildService();
         var video = MakeVideo("Cool video", "Tech");
         db.Videos.Add(video);
         await db.SaveChangesAsync();
 
-        await service.ToggleLikeAsync(video.Id, "user@example.com", isLike: true);
-        await service.ToggleLikeAsync(video.Id, "user@example.com", isLike: true);
+        await likeService.ToggleLikeAsync(video.Id, "user@example.com", isLike: true);
+        await likeService.ToggleLikeAsync(video.Id, "user@example.com", isLike: true);
 
-        var info = await service.GetLikeInfoAsync(video.Id, "user@example.com");
+        var info = await likeService.GetLikeInfoAsync(video.Id, "user@example.com");
         info.Likes.Should().Be(0);
         info.Dislikes.Should().Be(0);
         info.UserVote.Should().BeNull();
@@ -237,7 +237,7 @@ public class VideoServiceTests
     [Fact]
     public async Task SaveVideoAsync_RejectsExeFile()
     {
-        var (service, _) = BuildService();
+        var (service, _, _) = BuildService();
         var form = new UploadForm
         {
             Title = "Malware",
@@ -256,7 +256,7 @@ public class VideoServiceTests
     [Fact]
     public async Task UploadPage_RejectsOversizedFile()
     {
-        var (service, _) = BuildService();
+        var (service, _, _) = BuildService();
         var pageModel = new UploadModel(service);
 
         // Set up minimal PageContext so ModelState works
@@ -292,7 +292,7 @@ public class VideoServiceTests
     [Fact]
     public void GetBlobSasUrl_ReturnsNull_WhenBlobStorageNotConfigured()
     {
-        var (service, _) = BuildService();
+        var (service, _, _) = BuildService();
 
         var result = service.GetBlobSasUrl("any-file.mp4");
 

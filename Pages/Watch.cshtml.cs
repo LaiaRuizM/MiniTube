@@ -8,11 +8,15 @@ namespace MiniTube.Pages;
 
 public class WatchModel : PageModel
 {
-    private readonly VideoService _videoService;
+    private readonly IVideoService _videoService;
+    private readonly ILikeService _likeService;
+    private readonly ICommentService _commentService;
 
-    public WatchModel(VideoService videoService)
+    public WatchModel(IVideoService videoService, ILikeService likeService, ICommentService commentService)
     {
         _videoService = videoService;
+        _likeService = likeService;
+        _commentService = commentService;
     }
 
     public VideoMetadata? Video { get; set; }
@@ -52,12 +56,12 @@ public class WatchModel : PageModel
                    Video.OwnerEmail.Equals(email, StringComparison.OrdinalIgnoreCase)));
 
         // Get like info
-        var likeInfo = await _videoService.GetLikeInfoAsync(id, email);
+        var likeInfo = await _likeService.GetLikeInfoAsync(id, email);
         LikeCount = likeInfo.Likes;
         DislikeCount = likeInfo.Dislikes;
         UserVote = likeInfo.UserVote;
 
-        Comments = await _videoService.GetCommentsAsync(id);
+        Comments = await _commentService.GetCommentsAsync(id);
 
         return Page();
     }
@@ -68,7 +72,7 @@ public class WatchModel : PageModel
             return Challenge();
 
         var email = User.FindFirstValue(ClaimTypes.Email)!;
-        await _videoService.ToggleLikeAsync(id, email, isLike: true);
+        await _likeService.ToggleLikeAsync(id, email, isLike: true);
         return RedirectToPage(new { id });
     }
 
@@ -78,7 +82,7 @@ public class WatchModel : PageModel
             return Challenge();
 
         var email = User.FindFirstValue(ClaimTypes.Email)!;
-        await _videoService.ToggleLikeAsync(id, email, isLike: false);
+        await _likeService.ToggleLikeAsync(id, email, isLike: false);
         return RedirectToPage(new { id });
     }
 
@@ -92,7 +96,7 @@ public class WatchModel : PageModel
 
         var email = User.FindFirstValue(ClaimTypes.Email)!;
         var name = User.Identity?.Name ?? email;
-        await _videoService.AddCommentAsync(id, email, name, NewComment);
+        await _commentService.AddCommentAsync(id, email, name, NewComment);
         TempData["Success"] = "Comment posted!";
         return RedirectToPage(new { id });
     }
@@ -104,7 +108,7 @@ public class WatchModel : PageModel
 
         var email = User.FindFirstValue(ClaimTypes.Email);
         var isAdmin = User.HasClaim("IsAdmin", "true");
-        await _videoService.DeleteCommentAsync(commentId, email, isAdmin);
+        await _commentService.DeleteCommentAsync(commentId, email, isAdmin);
         TempData["Success"] = "Comment deleted.";
         return RedirectToPage(new { id });
     }

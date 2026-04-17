@@ -1,6 +1,6 @@
 @page
 @model MiniTube.Pages.WatchModel
-@inject MiniTube.Services.VideoService VideoService
+@inject MiniTube.Services.IVideoService VideoService
 @using System.Security.Claims
 @{
     ViewData["Title"] = Model.Video?.Title ?? "Watch";
